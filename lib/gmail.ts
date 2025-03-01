@@ -18,6 +18,13 @@ function stripHtml(html: string): string {
     .trim();
 }
 
+function stripImage(text: string) : string {
+  return text.replace(/\[image:\s*(?:.|\n)*?\]/g, '');
+}
+function stripLink(text: string) : string {
+  return text.replace(/https?:\/\/[^\s]+|www\.[^\s]+/g, '');
+}
+
 export default async function fetchEmails(accessToken: string, daysAgo: number) {
   try {
     const auth = new google.auth.OAuth2();
@@ -71,7 +78,7 @@ export default async function fetchEmails(accessToken: string, daysAgo: number) 
 
         }
 
-        const strippedBody = stripHtml(body);
+        const strippedBody = stripLink(stripImage(stripHtml(body)));
         console.log(strippedBody)
         return { subject, from, to, message_id, date, strippedBody};
       })
