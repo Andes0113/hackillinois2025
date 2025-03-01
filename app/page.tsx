@@ -1,13 +1,27 @@
+// page.tsx
 import { auth } from '@/lib/auth';
+import fetchEmails from '@/lib/gmail';
 import LoginPage from './login/page';
 
 export default async function HomePage() {
   const session = await auth();
-  console.log(session);
+
+  if (!session || !session.accessToken) {
+    return <LoginPage />;
+  }
+
+  const emails = await fetchEmails(session.accessToken);
+
   return (
-    <div>
-      TypeScript
-      <LoginPage />
+    <div className="p-6">
+      <h1 className="text-xl font-bold">Your Emails</h1>
+      <ul>
+        {emails.map((email, index) => (
+          <li key={index} className="border-b py-2">
+            <strong>{email.subject}</strong> - {email.from}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
