@@ -1,17 +1,23 @@
 // gmail.ts
 import { google } from 'googleapis';
 
-export default async function fetchEmails(accessToken: string) {
+export default async function fetchEmails(accessToken: string, daysAgo: number) {
   try {
     const auth = new google.auth.OAuth2();
     auth.setCredentials({ access_token: accessToken });
+    const tokenInfo = await auth.getTokenInfo(accessToken);
+    console.log(tokenInfo.scopes);
 
     const gmail = google.gmail({ version: 'v1', auth });
+
+    const date = new Date();
+    date.setDate(date.getDate() - daysAgo);
+    const formattedDate = `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`;
 
     // List messages (up to 10 emails)
     const response = await gmail.users.messages.list({
       userId: 'me',
-      maxResults: 10,
+      q: `after:${formattedDate}`,
     });
 
     const messages = response.data.messages || [];

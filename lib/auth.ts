@@ -16,7 +16,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       authorization: {
         params: {
           // Include default OpenID scopes along with Gmail read-only scope
-          scope: 'openid profile email https://www.googleapis.com/auth/gmail.readonly',
+          scope: 'openid profile email https://www.googleapis.com/auth/gmail.modify',
         },
       },
     }),
