@@ -1,6 +1,6 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-/topic_server/bertopic*
+/topic-server/bertopic*
 
 .venv/
 __pycache__/
