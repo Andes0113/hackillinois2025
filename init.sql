@@ -4,6 +4,15 @@ CREATE TABLE Groups (
     name TEXT
 );
 
+CREATE TABLE Emails (
+   user_email_address TEXT PRIMARY KEY,
+    email_id TEXT,
+    sender_email TEXT,
+    receiver_emails TEXT,
+    subj TEXT,
+    body TEXT
+);
+
 CREATE TABLE GroupEmail (
     user_email_address TEXT,
     group_id INT,

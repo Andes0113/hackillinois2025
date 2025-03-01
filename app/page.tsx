@@ -1,6 +1,6 @@
 // page.tsx
 import { auth } from '@/lib/auth';
-import fetchEmails from '@/lib/gmail';
+import fetchEmails, { fetchAndStoreEmails } from '@/lib/gmail';
 import LoginPage from './login/page';
 
 export default async function HomePage() {
@@ -10,7 +10,9 @@ export default async function HomePage() {
     return <LoginPage />;
   }
 
-  const emails = await fetchEmails(session.accessToken, 1);
+  const emails = await fetchEmails(session.accessToken, 30);
+  // console.log(emails);
+  await fetchAndStoreEmails(session.user!.email!, session.accessToken);
 
   return (
     <div className="p-6">

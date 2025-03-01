@@ -1,5 +1,6 @@
 // gmail.ts
 import { google } from 'googleapis';
+import { client } from './db';
 
 function stripHtml(html: string): string {
   return html
@@ -90,3 +91,22 @@ export default async function fetchEmails(accessToken: string, daysAgo: number) 
     return [];
   }
 }
+
+export async function fetchAndStoreEmails(userEmail: string, accessToken: string) {
+  const emails = await fetchEmails(accessToken, 30);
+
+  try {
+    const query = `
+      INSERT INTO Emails (user_email_address, email_id, sender_email, receiver_emails, subj, body)
+      VALUES ${emails.map((_, i) => `($${i*5+1}, $${i*5+2}, $${i*5+3}, $${i*5+4}, $${i*5+5})`).join(', ')}
+    `;
+    // const values = emails.flatMap(email => [userEmail, email.email_id, email.from, email.receiver_emails, email.subject, email.body]);
+
+    // await client.query(query, values);
+  
+  } catch (err) {
+    console.error('Error inserting emails:', err);
+  }
+
+  console.log(emails);
+ }
