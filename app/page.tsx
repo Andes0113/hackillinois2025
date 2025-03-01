@@ -12,7 +12,7 @@ export default async function HomePage() {
 
   const emails = await fetchEmails(session.accessToken, 30);
   // console.log(emails);
-  await fetchAndStoreEmails(session.user!.email!, session.accessToken);
+  await fetchAndStoreEmails(session.user!.email!, session.accessToken, 30);
 
   return (
     <div className="p-6">

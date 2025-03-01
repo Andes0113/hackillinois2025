@@ -4,9 +4,10 @@ CREATE TABLE Groups (
     name TEXT
 );
 
+DROP TABLE IF EXISTS Emails;
 CREATE TABLE Emails (
-   user_email_address TEXT PRIMARY KEY,
-    email_id TEXT,
+    user_email_address TEXT,
+    email_id TEXT PRIMARY KEY,
     sender_email TEXT,
     receiver_emails TEXT,
     subj TEXT,
