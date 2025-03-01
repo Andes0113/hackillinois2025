@@ -100,7 +100,7 @@ export async function fetchAndStoreEmails(userEmail: string, accessToken: string
       INSERT INTO Emails (user_email_address, email_id, sender_email, receiver_emails, subj, body)
       VALUES ${emails.map((_, i) => `($${i*5+1}, $${i*5+2}, $${i*5+3}, $${i*5+4}, $${i*5+5})`).join(', ')}
     `;
-    // const values = emails.flatMap(email => [userEmail, email.email_id, email.from, email.receiver_emails, email.subject, email.body]);
+    const values = emails.flatMap(email => [userEmail, email.message_id, email.from, email.from, email.subject, email.strippedBody]);
 
     // await client.query(query, values);
   
