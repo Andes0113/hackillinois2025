@@ -2,6 +2,7 @@
 import { auth } from '@/lib/auth';
 import fetchEmails, { fetchAndStoreEmails } from '@/lib/gmail';
 import LoginPage from './login/page';
+import FlowCanvas from './components/FlowCanvas';
 
 export default async function HomePage() {
   const session = await auth();
@@ -16,14 +17,15 @@ export default async function HomePage() {
 
   return (
     <div className="p-6">
-      <h1 className="text-xl font-bold">Your Emails</h1>
+      {/* <h1 className="text-xl font-bold">Your Emails</h1>
       <ul>
         {emails.map((email, index) => (
           <li key={index} className="border-b py-2">
             <strong>{email.subject}</strong> - {email.strippedBody}
           </li>
         ))}
-      </ul>
+      </ul> */}
+      <FlowCanvas />
     </div>
   );
 }

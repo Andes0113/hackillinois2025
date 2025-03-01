@@ -20,17 +20,11 @@ const nodes = Array.from(emailArray, (email, i) => ({
   type: 'emailNode',
   position: { x: Math.random() * 200 - 100, y: email.daysAgo * 25 },
   data: { to: `Node ${i + 1}` },
-  style: {
-    border: "2px solid #000",
-    borderRadius: "10px",
-    padding: "10px",
-    backgroundColor: "#f0f0f0",
-  },
 }));
 
 const edges = [
-  { id: "e1-2", source: "1", target: "2" },
-  { id: "e2-3", source: "2", target: "3" },
+  { id: "1-2", source: "1", target: "2" },
+  { id: "2-3", source: "2", target: "3" },
 ];
 
 function FlowCanvas() {
