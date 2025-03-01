@@ -1,3 +1,13 @@
+## Python Backend
+
+### Install uv
+
+Install uv (https://github.com/astral-sh/uv)
+
+### Run the server from the topic-server folder
+
+`uv run fastapi dev`
+
 ## Postgres
 
 ### Build the pgvector dockerfile:
