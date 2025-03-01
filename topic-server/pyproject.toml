@@ -3,7 +3,12 @@ name = "topic-server"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.9"
 dependencies = [
     "fastapi[standard]>=0.115.10",
+    "psycopg2>=2.9",  # For PostgreSQL connection
+    "bertopic>=0.13.0",  # For BERTopic
+    "pandas>=1.3.0",  # For DataFrame processing
+    "numpy>=1.21.0",  # For numerical operations
+    "uvicorn[standard]>=0.15.0",  # For running FastAPI app
 ]
