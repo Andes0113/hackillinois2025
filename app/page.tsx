@@ -10,7 +10,7 @@ export default async function HomePage() {
     return <LoginPage />;
   }
 
-  const emails = await fetchEmails(session.accessToken, 30);
+  const emails = await fetchEmails(session.accessToken, 1);
 
   return (
     <div className="p-6">
@@ -18,7 +18,7 @@ export default async function HomePage() {
       <ul>
         {emails.map((email, index) => (
           <li key={index} className="border-b py-2">
-            <strong>{email.subject}</strong> - {email.from}
+            <strong>{email.subject}</strong> - {email.strippedBody}
           </li>
         ))}
       </ul>
