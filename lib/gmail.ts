@@ -1,5 +1,5 @@
 // gmail.ts
-import { google } from 'googleapis';
+import { gmail_v1, google } from 'googleapis';
 import { client } from './db';
 
 function stripHtml(html: string): string {
@@ -26,6 +26,66 @@ function stripLink(text: string) : string {
   return text.replace(/https?:\/\/[^\s]+|www\.[^\s]+/g, '');
 }
 
+export async function fetchEmailById(gmailClient: gmail_v1.Gmail, id?: string) {
+  if (!id) return { subject: 'No ID', from: 'Unknown' };
+
+  try {
+    const email = await gmailClient.users.messages.get({
+      userId: 'me',
+      id,
+    });
+
+    const headers = email.data.payload?.headers || [];
+    const subject = headers.find((h) => h.name === 'Subject')?.value || 'No Subject';
+    const from = headers.find((h) => h.name === 'From')?.value || 'Unknown Sender';
+    const to = headers.find((h) => h.name === 'To')?.value || 'Unknown Receiver';
+    const message_id = email.data.id;
+    const date = headers.find((h) => h.name === 'Date-Id')?.value || 'Unknown Date';
+    let body = 'No Body'
+    if (email.data.payload?.body?.data) {
+      body = Buffer.from(email.data.payload.body.data, 'base64').toString();
+    } else if (email.data.payload?.parts) {
+      const textPart = email.data.payload.parts.find((p) => p.mimeType === 'text/plain');
+      if (textPart && textPart?.body?.data) {
+        body = Buffer.from(textPart.body.data, 'base64').toString();
+      } else {
+        const nextPart = email.data.payload.parts.find((p) => p.mimeType === 'multipart/alternative')
+        const nextTextPart = nextPart?.parts?.find((p) => p.mimeType === 'text/plain')
+        if (nextTextPart && nextTextPart?.body?.data) {
+          body = Buffer.from(nextTextPart.body.data, 'base64').toString();
+        }
+      }
+
+    }
+
+    const strippedBody = stripLink(stripImage(stripHtml(body)));
+
+    return { subject, from, to, message_id, date, strippedBody};
+  } catch (err) {
+    console.error('Error fetching emails:', err);
+    return {};
+  }
+}
+
+export async function batchFetchEmailContent(accessToken: string, ids: string[]) {
+  try {
+    const auth = new google.auth.OAuth2();
+    auth.setCredentials({ access_token: accessToken });
+    const tokenInfo = await auth.getTokenInfo(accessToken);
+
+    const gmail = google.gmail({ version: 'v1', auth });
+
+    const emails = await Promise.all(ids.map((id) => 
+      fetchEmailById(gmail, id)
+    ));
+
+    return emails;
+  } catch (err) {
+    console.error(err);
+    return [];
+  }
+}
+
 export default async function fetchEmails(accessToken: string, daysAgo: number) {
   try {
     const auth = new google.auth.OAuth2();
@@ -47,45 +107,11 @@ export default async function fetchEmails(accessToken: string, daysAgo: number) 
     const messages = response.data.messages || [];
 
     // Fetch each email’s details concurrently
-    const emailDetails = await Promise.all(
-      messages.map(async (msg) => {
-        if (!msg.id) return { subject: 'No ID', from: 'Unknown' };
-
-        const email = await gmail.users.messages.get({
-          userId: 'me',
-          id: msg.id,
-        });
-
-        const headers = email.data.payload?.headers || [];
-        const subject = headers.find((h) => h.name === 'Subject')?.value || 'No Subject';
-        const from = headers.find((h) => h.name === 'From')?.value || 'Unknown Sender';
-        const to = headers.find((h) => h.name === 'To')?.value || 'Unknown Receiver';
-        const message_id = email.data.id;
-        const date = headers.find((h) => h.name === 'Date-Id')?.value || 'Unknown Date';
-        let body = 'No Body'
-        if (email.data.payload?.body?.data) {
-          body = Buffer.from(email.data.payload.body.data, 'base64').toString();
-        } else if (email.data.payload?.parts) {
-          const textPart = email.data.payload.parts.find((p) => p.mimeType === 'text/plain');
-          if (textPart && textPart?.body?.data) {
-            body = Buffer.from(textPart.body.data, 'base64').toString();
-          } else {
-            const nextPart = email.data.payload.parts.find((p) => p.mimeType === 'multipart/alternative')
-            const nextTextPart = nextPart?.parts?.find((p) => p.mimeType === 'text/plain')
-            if (nextTextPart && nextTextPart?.body?.data) {
-              body = Buffer.from(nextTextPart.body.data, 'base64').toString();
-            }
-          }
-
-        }
-
-        const strippedBody = stripLink(stripImage(stripHtml(body)));
-        console.log(strippedBody)
-        return { subject, from, to, message_id, date, strippedBody};
-      })
+    const emails = await Promise.all(
+      messages.map(async (msg) => fetchEmailById(gmail, msg.id!))
     );
 
-    return emailDetails;
+    return emails;
   } catch (error) {
     console.error('Error fetching emails:', error);
     return [];
@@ -107,4 +133,6 @@ export async function fetchAndStoreEmails(userEmail: string, accessToken: string
   } catch (err) {
     console.error('Error inserting emails:', err);
   }
+
+  // console.log(emails);
  }
