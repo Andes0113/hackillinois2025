@@ -10,7 +10,7 @@ export default async function HomePage() {
     return <LoginPage />;
   }
 
-  const emails = await fetchEmails(session.accessToken);
+  const emails = await fetchEmails(session.accessToken, 30);
 
   return (
     <div className="p-6">
