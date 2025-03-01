@@ -4,7 +4,7 @@
 
 Install uv (https://github.com/astral-sh/uv)
 
-### Run the server
+### Run the server from the topic-server folder
 
 `uv run fastapi dev`
 
