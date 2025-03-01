@@ -92,21 +92,19 @@ export default async function fetchEmails(accessToken: string, daysAgo: number) 
   }
 }
 
-export async function fetchAndStoreEmails(userEmail: string, accessToken: string) {
-  const emails = await fetchEmails(accessToken, 30);
+export async function fetchAndStoreEmails(userEmail: string, accessToken: string, daysAgo: number) {
+  const emails = await fetchEmails(accessToken, daysAgo);
 
   try {
     const query = `
       INSERT INTO Emails (user_email_address, email_id, sender_email, receiver_emails, subj, body)
-      VALUES ${emails.map((_, i) => `($${i*5+1}, $${i*5+2}, $${i*5+3}, $${i*5+4}, $${i*5+5})`).join(', ')}
-    `;
-    const values = emails.flatMap(email => [userEmail, email.message_id, email.from, email.from, email.subject, email.strippedBody]);
+      VALUES ${emails.map((_, i) => `($${i*6+1}, $${i*6+2}, $${i*6+3}, $${i*6+4}, $${i*6+5}, $${i*6+6})`).join(', ')}
+      ON CONFLICT (email_id) DO NOTHING;`;
 
-    // await client.query(query, values);
-  
+    const values = emails.flatMap(email => [userEmail, email.message_id, email.from, email.to, email.subject, email.strippedBody]);
+
+    await client.query(query, values);
   } catch (err) {
     console.error('Error inserting emails:', err);
   }
-
-  console.log(emails);
  }
