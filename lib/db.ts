@@ -9,3 +9,9 @@ export const client = new Client({
   port: 6543,
   database: 'clustermail'
 });
+
+async function connectClient() {
+  await client.connect();
+}
+
+connectClient();
