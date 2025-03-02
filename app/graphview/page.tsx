@@ -3,8 +3,10 @@
 import EmailSidebar from 'app/components/EmailSidebar';
 import FlowCanvas from '../components/FlowCanvas';
 import { useState } from 'react';
+import { useEmailContext } from 'app/contexts/EmailContext';
 
 export default function graphview() {
+  const { groups, groupsLoading } = useEmailContext();
   const [daysAgo, setDaysAgo] = useState(30);
 
   const handleSelectChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
@@ -29,7 +31,7 @@ export default function graphview() {
       </select>
       <div className="flex">
         <EmailSidebar />
-        <FlowCanvas />
+        {!groupsLoading && <FlowCanvas groups={groups} />}
       </div>
     </>
   );

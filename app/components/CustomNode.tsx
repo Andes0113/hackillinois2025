@@ -19,6 +19,7 @@ const CustomNode: React.FC<Props> = ({ data }) => {
 
   return (
     <div
+      className="max-w-xs"
       onClick={handleClick}
       style={{
         padding: 10,
@@ -31,7 +32,7 @@ const CustomNode: React.FC<Props> = ({ data }) => {
     >
       <p>To: {data.email && data.email.to}</p>
       <p>From: {data.email && data.email.from}</p>
-      <p>Subject: {data.email && data.email.strippedBody}</p>
+      <p>Subject: {data.email && data.email.subject}</p>
 
       {/* Top Handles */}
       <Handle type="target" position={Position.Top} id="top-target" style={{ visibility: 'hidden' }} />

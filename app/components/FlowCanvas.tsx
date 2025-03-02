@@ -14,8 +14,11 @@ const nodeTypes = {
   custom: CustomNode,
 };
 
-const FlowDiagram: React.FC = () => {
-  const { groups, groupsLoading } = useEmailContext();
+interface FlowDiagramProps {
+  groups: Group[];
+}
+
+const FlowDiagram = ({ groups }: FlowDiagramProps) => {
 
   const [sharedPopupState, setSharedPopupState] = useState<boolean>(false);
   const [selectedEmail, setSelectedEmail] = useState<EmailType | null>(null);
@@ -153,7 +156,7 @@ const FlowDiagram: React.FC = () => {
       nodes.push({
         id: centerId,
         position: { x: centerX + j * 300, y: centerY },
-        data: { label: `Central Node ${j + 1}` },
+        data: { label: data[j].name },
         type: 'default',
       });
 
@@ -182,8 +185,8 @@ const FlowDiagram: React.FC = () => {
 
     return { nodes, edges };
   };
-
-  const { nodes: initialNodes, edges: initialEdges } = createGraph(emailData);
+  console.log(groups);
+  const { nodes: initialNodes, edges: initialEdges } = createGraph(groups);
   const [nodes, setNodes] = useState<Node[]>(initialNodes);
   const [edges, setEdges] = useState<Edge[]>(initialEdges);
 
