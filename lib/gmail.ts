@@ -35,9 +35,10 @@ async function generateSummary(subject: string | undefined, body: string | undef
   }
   try {
     const openai = new OpenAI();
-    const prompt = `
-    You are an AI assistant that extracts the most important details from an email. Given an email with a title and body, extract a list of keywords separated by only spaces. Do not use bullet points. Ignore all unnecessary components like html, css, and urls. The summary should be short but retain all relevant semantic meaning to facilitate similarity comparisons.
+    // old prompt: You are an AI assistant that extracts the most important details from an email. Given an email with a title and body, extract a list of keywords separated by only spaces. Do not use bullet points. Ignore all unnecessary components like html, css, and urls. The summary should be short but retain all relevant semantic meaning to facilitate similarity comparisons.
 
+    const prompt = `
+    Please process the following email and summarize the key topics, entities, and concepts with a detailed summary. Make sure to retain important semantic meaning, including names, events, issues, and significant discussions. Provide a very long, detailed, and coherent summary that highlights the most relevant and meaningful aspects of the email. Ensure the summary is comprehensive enough to facilitate topic modeling with BERTopic. do not include bullet points or titles in your response
   
     Title: "${subject}"
   

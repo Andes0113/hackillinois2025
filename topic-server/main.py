@@ -266,7 +266,7 @@ def get_topics(user_email: str = Query(..., description="User's email address"))
         #     )
         # topics, _ = topic_model.fit_transform(documents)
 
-        custom_stopwords = ["the", "and", "to", "for", "of", "a", "in", "on"]
+        custom_stopwords = ["the", "and", "to", "for", "of", "a", "in", "on", "email", "overall", "from", "aims", "key", "themes"]
         vectorizer_model = CountVectorizer(stop_words=custom_stopwords)
         
         umap_model = UMAP(n_neighbors=10, min_dist=0.1)
