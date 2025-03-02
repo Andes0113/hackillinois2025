@@ -33,7 +33,6 @@ async function generateSummary(subject: string | undefined, body: string | undef
   if (subject === undefined || body === undefined || !emailId || emailId  == undefined) {
     return "No subject or body";
   }
-  try {
     const openai = new OpenAI();
     // old prompt: You are an AI assistant that extracts the most important details from an email. Given an email with a title and body, extract a list of keywords separated by only spaces. Do not use bullet points. Ignore all unnecessary components like html, css, and urls. The summary should be short but retain all relevant semantic meaning to facilitate similarity comparisons.
 
@@ -57,74 +56,95 @@ async function generateSummary(subject: string | undefined, body: string | undef
       const res2 = await client.query(query2, [emailId]);
       return res2.rows[0];
     }
-  
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-          { role: "system", content: "You are an AI assistant that extracts the most important details from an email." },
-          {
-              role: "user",
-              content: prompt,
-          },
-      ],
-      store: true,
-    });
-  
-    const summary = response.choices?.[0]?.message?.content?.trim() || "No summary generated.";
-    return summary;
+    let waitTime = 1000;
+    while (true) {
+      try {
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+              { role: "system", content: "You are an AI assistant that extracts the most important details from an email." },
+              {
+                  role: "user",
+                  content: prompt,
+              },
+          ],
+          store: true,
+        });
+      
+        const summary = response.choices?.[0]?.message?.content?.trim() || "No summary generated.";
+        return summary;
+    
+      }
+        catch (error: any) {
+          if (error.response?.status === 429) {
+            // **Rate Limited: Wait & Retry**
+            // console.warn(`Rate limited. Retrying in ${waitTime / 1000} seconds...`);
+            await new Promise(resolve => setTimeout(resolve, 30000));
+            waitTime *= 2;
+          } else {
+            console.error("Error generating summary:", error);
+            return "Error generating summary.";
+          }
+        }
+    }
 
-  }
-    catch (error) {
-      console.error("Error generating summary:", error);
-      return "Error generating summary.";
-  }
 
 }
 
 export async function fetchEmailById(gmailClient: gmail_v1.Gmail, id?: string) {
   if (!id) return { subject: 'No ID', from: 'Unknown' };
 
-  try {
-    const email = await gmailClient.users.messages.get({
-      userId: 'me',
-      id,
-    });
+  let waitTime = 1000;
+  while (true) {
+    try {
+      const email = await gmailClient.users.messages.get({
+        userId: 'me',
+        id,
+      });
 
-    const headers = email.data.payload?.headers || [];
-    const subject = headers.find((h) => h.name === 'Subject')?.value || 'No Subject';
-    const from = headers.find((h) => h.name === 'From')?.value || 'Unknown Sender';
-    const to = headers.find((h) => h.name === 'To')?.value || 'Unknown Receiver';
-    const message_id = email.data.id;
-    const dateHeader = headers.find((h) => h.name === 'Date')?.value;
-    let dateSent = null;
-    if (dateHeader) {
-      const parsedDate = new Date(dateHeader);
-      dateSent = parsedDate.toISOString().replace("T", " ").split(".")[0]; // Format: 'YYYY-MM-DD HH:MI:SS'
-    }
+      const headers = email.data.payload?.headers || [];
+      const subject = headers.find((h) => h.name === 'Subject')?.value || 'No Subject';
+      const from = headers.find((h) => h.name === 'From')?.value || 'Unknown Sender';
+      const to = headers.find((h) => h.name === 'To')?.value || 'Unknown Receiver';
+      const message_id = email.data.id;
+      const dateHeader = headers.find((h) => h.name === 'Date')?.value;
+      let dateSent = null;
+      if (dateHeader) {
+        const parsedDate = new Date(dateHeader);
+        dateSent = parsedDate.toISOString().replace("T", " ").split(".")[0]; // Format: 'YYYY-MM-DD HH:MI:SS'
+      }
 
-    let body = 'No Body';
-    if (email.data.payload?.body?.data) {
-      body = Buffer.from(email.data.payload.body.data, 'base64').toString();
-    } else if (email.data.payload?.parts) {
-      const textPart = email.data.payload.parts.find((p) => p.mimeType === 'text/plain');
-      if (textPart && textPart?.body?.data) {
-        body = Buffer.from(textPart.body.data, 'base64').toString();
-      } else {
-        const nextPart = email.data.payload.parts.find((p) => p.mimeType === 'multipart/alternative')
-        const nextTextPart = nextPart?.parts?.find((p) => p.mimeType === 'text/plain')
-        if (nextTextPart && nextTextPart?.body?.data) {
-          body = Buffer.from(nextTextPart.body.data, 'base64').toString();
+      let body = 'No Body';
+      if (email.data.payload?.body?.data) {
+        body = Buffer.from(email.data.payload.body.data, 'base64').toString();
+      } else if (email.data.payload?.parts) {
+        const textPart = email.data.payload.parts.find((p) => p.mimeType === 'text/plain');
+        if (textPart && textPart?.body?.data) {
+          body = Buffer.from(textPart.body.data, 'base64').toString();
+        } else {
+          const nextPart = email.data.payload.parts.find((p) => p.mimeType === 'multipart/alternative')
+          const nextTextPart = nextPart?.parts?.find((p) => p.mimeType === 'text/plain')
+          if (nextTextPart && nextTextPart?.body?.data) {
+            body = Buffer.from(nextTextPart.body.data, 'base64').toString();
+          }
         }
+
+      }
+
+      const strippedBody = stripLink(stripImage(stripHtml(body)));
+      //1231
+      return { subject, from, to, message_id, dateSent, strippedBody};
+    } catch (err: any) {
+      if (err.code === 403 || err.code === 429) {
+        console.log("waiting");
+        await new Promise(resolve => setTimeout(resolve, 30000));
+        waitTime *= 2;
+      } else {
+        console.error('Error fetching emails:', err);
+        return {};
       }
 
     }
-
-    const strippedBody = stripLink(stripImage(stripHtml(body)));
-
-    return { subject, from, to, message_id, dateSent, strippedBody};
-  } catch (err) {
-    console.error('Error fetching emails:', err);
-    return {};
   }
 }
 
@@ -173,13 +193,11 @@ export default async function fetchEmails(accessToken: string, daysAgo: number) 
         const emailDetails = await Promise.all(
           response.data.messages?.map(async (msg) => msg.id ? fetchEmailById(gmail, msg.id) : null) ?? []
         );
-        
-
-          messages.push(...emailDetails);
+        messages.push(...emailDetails);
       }
 
-      nextPageToken = response.data.nextPageToken; // Update nextPageToken for next request
-  } while (nextPageToken); // Keep fetching until no more pages
+      nextPageToken = response.data.nextPageToken;
+  } while (nextPageToken);
 
   console.log(`Total emails fetched: ${messages.length}`);
   return messages.filter(email => email !== null);
