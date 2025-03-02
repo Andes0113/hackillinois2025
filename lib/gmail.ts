@@ -36,13 +36,12 @@ async function generateSummary(subject: string | undefined, body: string | undef
   try {
     const openai = new OpenAI();
     const prompt = `
-    You are an AI assistant that extracts the most important details from an email. Given an email with a title and body, summarize its content in a concise, structured format that captures key topics, intent, and context. Do not use bullet points and keep everything in 1 paragraph. Ignore unnecessary components like HTML, CSS, and URLs. Avoid filler phrases such as "The email" and focus on essential information. The summary should be short but retain all relevant semantic meaning to facilitate similarity comparisons.
+    You are an AI assistant that extracts the most important details from an email. Given an email with a title and body, extract a list of keywords separated by only spaces. Do not use bullet points. Ignore all unnecessary components like html, css, and urls. The summary should be short but retain all relevant semantic meaning to facilitate similarity comparisons.
+
   
     Title: "${subject}"
   
     Body: "${body}"
-  
-    Provide a structured summary of the email:
     `;
 
     const query = "SELECT EXISTS (SELECT 1 FROM Emails WHERE email_id = $1)";
