@@ -4,14 +4,14 @@ import React from "react";
 import { Handle, Position, NodeProps } from "reactflow";
 import { EmailType } from "types";
 
-interface CustomNodeProps {
+interface EmailNodeProps {
   email: EmailType;
   onClick: () => void;
 }
 
-type Props = NodeProps<CustomNodeProps>;
+type Props = NodeProps<EmailNodeProps>;
 
-const CustomNode: React.FC<Props> = ({ data }) => {
+const EmailNode: React.FC<Props> = ({ data }) => {
 
   const handleClick = () => {
     data.onClick();
@@ -53,4 +53,4 @@ const CustomNode: React.FC<Props> = ({ data }) => {
   );
 };
 
-export default CustomNode;
+export default EmailNode;

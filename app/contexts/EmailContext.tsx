@@ -10,7 +10,9 @@ import {
 import { useSession } from 'next-auth/react';
 import {
   createContext,
+  Dispatch,
   ReactNode,
+  SetStateAction,
   useContext,
   useEffect,
   useState
@@ -18,6 +20,8 @@ import {
 import type { EmailType } from 'types';
 
 type EmailContextValues = {
+  selectedGroupId: number | null;
+  setSelectedGroupId: Dispatch<SetStateAction<number | null>> | null;
   emails: EmailType[];
   emailsLoading: Boolean;
   groups: Group[];
@@ -34,6 +38,8 @@ export type Group = {
 };
 
 const EmailContext = createContext<EmailContextValues>({
+  selectedGroupId: null,
+  setSelectedGroupId: () => {},
   emails: [],
   emailsLoading: true,
   groups: [],
@@ -62,6 +68,7 @@ export default function EmailContextProvider({
 }: EmailContextProviderProps) {
   const { data: session, status } = useSession();
 
+  const [selectedGroupId, setSelectedGroupId] = useState<number| null>(null);
   const [emailsLoading, setEmailsLoading] = useState<Boolean>(true);
   const [emails, setEmails] = useState<EmailType[]>([]);
   const [groupsLoading, setGroupsLoading] = useState<Boolean>(true);
@@ -118,6 +125,8 @@ export default function EmailContextProvider({
   }
 
   const value: EmailContextValues = {
+    selectedGroupId,
+    setSelectedGroupId,
     emailsLoading,
     emails,
     groups,

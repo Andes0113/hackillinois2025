@@ -3,15 +3,14 @@
 import React, { useState } from "react";
 import ReactFlow, { Node, Edge, applyEdgeChanges, applyNodeChanges, addEdge, ReactFlowProvider } from "reactflow";
 import "reactflow/dist/style.css";
-import CustomNode from "./CustomNode";
+import EmailNode from "./EmailNode";
 import EmailPopup from "./EmailPopup";
 import styles from "./FlowCanvas.module.css";
-import { useEmailContext } from "app/contexts/EmailContext";
 import { EmailType } from "types";
 import { Group } from "app/contexts/EmailContext";
 
 const nodeTypes = {
-  custom: CustomNode,
+  email: EmailNode,
 };
 
 interface FlowDiagramProps {
