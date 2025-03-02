@@ -1,14 +1,21 @@
-"use client"
+'use client';
 
-import React, { Dispatch, SetStateAction, useCallback, useState } from "react";
-import ReactFlow, { Node, Edge, applyEdgeChanges, applyNodeChanges, addEdge, ReactFlowProvider } from "reactflow";
-import "reactflow/dist/style.css";
-import EmailNode from "./EmailNode";
-import EmailPopup from "./EmailPopup";
-import styles from "./FlowCanvas.module.css";
-import { EmailType } from "types";
-import { Group } from "app/contexts/EmailContext";
-import GroupNode from "./GroupNode";
+import React, { Dispatch, SetStateAction, useCallback, useState } from 'react';
+import ReactFlow, {
+  Node,
+  Edge,
+  applyEdgeChanges,
+  applyNodeChanges,
+  addEdge,
+  ReactFlowProvider
+} from 'reactflow';
+import 'reactflow/dist/style.css';
+import EmailNode from './EmailNode';
+import EmailPopup from './EmailPopup';
+import styles from './FlowCanvas.module.css';
+import { EmailType } from 'types';
+import { Group } from 'app/contexts/EmailContext';
+import GroupNode from './GroupNode';
 
 const nodeTypes = {
   email: EmailNode,
@@ -19,10 +26,15 @@ interface FlowDiagramProps {
   groups: Group[];
   selectedGroupId: number | null;
   setSelectedGroupId: Dispatch<SetStateAction<number | null>> | null;
+  editGroupName: (groupId: number, name: string) => Promise<void>;
 }
 
-const FlowDiagram = ({ groups, selectedGroupId, setSelectedGroupId }: FlowDiagramProps) => {
-
+const FlowDiagram = ({
+  groups,
+  selectedGroupId,
+  setSelectedGroupId,
+  editGroupName
+}: FlowDiagramProps) => {
   const [sharedPopupState, setSharedPopupState] = useState<boolean>(false);
   const [selectedEmail, setSelectedEmail] = useState<EmailType | null>(null);
   const updateSharedPopupState = (email: EmailType, state: boolean) => {
@@ -42,103 +54,103 @@ const FlowDiagram = ({ groups, selectedGroupId, setSelectedGroupId }: FlowDiagra
   const emailData: Group[] = [
     {
       group_id: 1,
-      name: "Engineering Team",
+      name: 'Engineering Team',
       emails: [
         {
-          subject: "Project Update",
-          from: "alice@example.com",
-          to: "team@example.com",
-          message_id: "msg-001",
-          date: "2025-03-01T10:00:00Z",
-          strippedBody: "Project is on track for completion."
+          subject: 'Project Update',
+          from: 'alice@example.com',
+          to: 'team@example.com',
+          message_id: 'msg-001',
+          date: '2025-03-01T10:00:00Z',
+          strippedBody: 'Project is on track for completion.'
         },
         {
-          subject: "Bug Fixes",
-          from: "bob@example.com",
-          to: "team@example.com",
-          message_id: "msg-002",
-          date: "2025-03-02T12:30:00Z",
-          strippedBody: "Fixed critical bugs in module X."
+          subject: 'Bug Fixes',
+          from: 'bob@example.com',
+          to: 'team@example.com',
+          message_id: 'msg-002',
+          date: '2025-03-02T12:30:00Z',
+          strippedBody: 'Fixed critical bugs in module X.'
         }
       ]
     },
     {
       group_id: 2,
-      name: "Marketing Team",
+      name: 'Marketing Team',
       emails: [
         {
-          subject: "Campaign Launch",
-          from: "carol@example.com",
-          to: "marketing@example.com",
-          message_id: "msg-003",
-          date: "2025-03-01T15:45:00Z",
-          strippedBody: "Launching the new campaign next week."
+          subject: 'Campaign Launch',
+          from: 'carol@example.com',
+          to: 'marketing@example.com',
+          message_id: 'msg-003',
+          date: '2025-03-01T15:45:00Z',
+          strippedBody: 'Launching the new campaign next week.'
         },
         {
-          subject: "Meeting Reminder",
-          from: "dave@example.com",
-          to: "marketing@example.com",
-          message_id: "msg-004",
-          date: "2025-03-02T08:15:00Z",
-          strippedBody: "Reminder: Team meeting at 3 PM."
+          subject: 'Meeting Reminder',
+          from: 'dave@example.com',
+          to: 'marketing@example.com',
+          message_id: 'msg-004',
+          date: '2025-03-02T08:15:00Z',
+          strippedBody: 'Reminder: Team meeting at 3 PM.'
         }
       ]
     },
     {
       group_id: 3,
-      name: "HR Department",
+      name: 'HR Department',
       emails: [
         {
-          subject: "Policy Update",
-          from: "hr@example.com",
-          to: "all@example.com",
-          message_id: "msg-005",
-          date: "2025-03-01T09:00:00Z",
-          strippedBody: "Updated remote work policy."
+          subject: 'Policy Update',
+          from: 'hr@example.com',
+          to: 'all@example.com',
+          message_id: 'msg-005',
+          date: '2025-03-01T09:00:00Z',
+          strippedBody: 'Updated remote work policy.'
         }
       ]
     },
     {
       group_id: 4,
-      name: "Sales Team",
+      name: 'Sales Team',
       emails: [
         {
-          subject: "Monthly Targets",
-          from: "saleslead@example.com",
-          to: "sales@example.com",
-          message_id: "msg-006",
-          date: "2025-03-01T11:30:00Z",
-          strippedBody: "We need to hit our sales goals this month."
+          subject: 'Monthly Targets',
+          from: 'saleslead@example.com',
+          to: 'sales@example.com',
+          message_id: 'msg-006',
+          date: '2025-03-01T11:30:00Z',
+          strippedBody: 'We need to hit our sales goals this month.'
         },
         {
-          subject: "Client Follow-ups",
-          from: "rep@example.com",
-          to: "sales@example.com",
-          message_id: "msg-007",
-          date: "2025-03-02T14:20:00Z",
-          strippedBody: "Follow up with key clients for renewals."
+          subject: 'Client Follow-ups',
+          from: 'rep@example.com',
+          to: 'sales@example.com',
+          message_id: 'msg-007',
+          date: '2025-03-02T14:20:00Z',
+          strippedBody: 'Follow up with key clients for renewals.'
         }
       ]
     },
     {
       group_id: 5,
-      name: "Support Team",
+      name: 'Support Team',
       emails: [
         {
-          subject: "New Ticket Assignments",
-          from: "support@example.com",
-          to: "helpdesk@example.com",
-          message_id: "msg-008",
-          date: "2025-03-01T13:10:00Z",
-          strippedBody: "New tickets have been assigned."
+          subject: 'New Ticket Assignments',
+          from: 'support@example.com',
+          to: 'helpdesk@example.com',
+          message_id: 'msg-008',
+          date: '2025-03-01T13:10:00Z',
+          strippedBody: 'New tickets have been assigned.'
         },
         {
-          subject: "Resolved Tickets",
-          from: "agent@example.com",
-          to: "helpdesk@example.com",
-          message_id: "msg-009",
-          date: "2025-03-02T16:45:00Z",
-          strippedBody: "Several tickets have been resolved today."
+          subject: 'Resolved Tickets',
+          from: 'agent@example.com',
+          to: 'helpdesk@example.com',
+          message_id: 'msg-009',
+          date: '2025-03-02T16:45:00Z',
+          strippedBody: 'Several tickets have been resolved today.'
         }
       ]
     }
@@ -159,8 +171,14 @@ const FlowDiagram = ({ groups, selectedGroupId, setSelectedGroupId }: FlowDiagra
       nodes.push({
         id: centerId,
         position: { x: centerX + j * 300, y: centerY },
-        data: { group: data[j], selectedGroupId, setSelectedGroupId },
+        data: { group: data[j], selectedGroupId, editGroupName },
         type: 'group',
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 'fit-content'
+        }
       });
 
       for (let i = 0; i < data[j].emails.length; i++) {
@@ -172,7 +190,7 @@ const FlowDiagram = ({ groups, selectedGroupId, setSelectedGroupId }: FlowDiagra
 
         nodes.push({
           id: `${j}-${i + 1}`,
-          type: "email",
+          type: 'email',
           position: { x: x, y: y },
           data: { email, onClick: () => updateSharedPopupState(email, true) }
         });
@@ -181,7 +199,7 @@ const FlowDiagram = ({ groups, selectedGroupId, setSelectedGroupId }: FlowDiagra
           id: `edge-${j}-${i}`,
           source: centerId,
           target: `${j}-${i + 1}`,
-          animated: true,
+          animated: true
         });
       }
     }
@@ -194,19 +212,24 @@ const FlowDiagram = ({ groups, selectedGroupId, setSelectedGroupId }: FlowDiagra
   const [edges, setEdges] = useState<Edge[]>(initialEdges);
 
   const onSelectionChange = useCallback(({ nodes }: { nodes: Node[] }) => {
-    const selectedGroupNode = nodes.find((node) => node.selected && node.type == 'group')
+    const selectedGroupNode = nodes.find(
+      (node) => node.selected && node.type == 'group'
+    );
     if (setSelectedGroupId) {
       if (selectedGroupNode) {
         setSelectedGroupId(selectedGroupNode.data.group.group_id!);
       } else {
         setSelectedGroupId(null);
-      }  
+      }
     }
   }, []);
 
-  const onNodesChange = (changes: any) => setNodes((nds) => applyNodeChanges(changes, nds));
-  const onEdgesChange = (changes: any) => setEdges((eds) => applyEdgeChanges(changes, eds));
-  const onConnect = (connection: any) => setEdges((eds) => addEdge(connection, eds));
+  const onNodesChange = (changes: any) =>
+    setNodes((nds) => applyNodeChanges(changes, nds));
+  const onEdgesChange = (changes: any) =>
+    setEdges((eds) => applyEdgeChanges(changes, eds));
+  const onConnect = (connection: any) =>
+    setEdges((eds) => addEdge(connection, eds));
 
   return (
     <>
@@ -224,14 +247,16 @@ const FlowDiagram = ({ groups, selectedGroupId, setSelectedGroupId }: FlowDiagra
           />
         </ReactFlowProvider>
       </div>
-      {sharedPopupState && selectedEmail && <EmailPopup
-        onClose={() => setSharedPopupState(false)}
-        sender={selectedEmail.from}
-        receiver={selectedEmail.to}
-        dateSent={selectedEmail.date}
-        subject={selectedEmail.subject}
-        message={selectedEmail.strippedBody}
-      />}
+      {sharedPopupState && selectedEmail && (
+        <EmailPopup
+          onClose={() => setSharedPopupState(false)}
+          sender={selectedEmail.from}
+          receiver={selectedEmail.to}
+          dateSent={selectedEmail.date}
+          subject={selectedEmail.subject}
+          message={selectedEmail.strippedBody}
+        />
+      )}
     </>
   );
 };

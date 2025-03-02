@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { useEmailContext } from 'app/contexts/EmailContext';
 
 export default function graphview() {
-  const { groups, groupsLoading, selectedGroupId, setSelectedGroupId } =
+  const { groups, groupsLoading, selectedGroupId, setSelectedGroupId, editGroupName } =
     useEmailContext();
   const [daysAgo, setDaysAgo] = useState(30);
 
@@ -37,6 +37,7 @@ export default function graphview() {
             groups={groups}
             selectedGroupId={selectedGroupId}
             setSelectedGroupId={setSelectedGroupId}
+            editGroupName={editGroupName}
           />
         )}
       </div>
