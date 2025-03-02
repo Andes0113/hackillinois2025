@@ -966,49 +966,102 @@ def reassign_topic(request: TopicReassignmentRequest):
     finally:
         release_db_connection(conn)
 
-# @app.post("/update_topics")
-# def update_topics(
-#     user_email: str = Query(..., description="User's email address"),
-#     new_documents: List[str] = Body(..., description="List of new email texts")
-# ):
-#     """
-#     Update the BERTopic model with new topics given additional documents.
-#     """
-#     model_file = f"bertopic_{user_email}.pkl"
-    
-#     # Load existing model if available
-#     if os.path.exists(model_file):
-#         try:
-#             topic_model = BERTopic.load(model_file)
-#         except Exception as e:
-#             print(f"Error loading model: {e}")
-#             topic_model = BERTopic()
-#     else:
-#         topic_model = BERTopic()
-    
-#     # Fetch existing emails to maintain the dataset
-#     existing_emails = fetch_user_emails(user_email)
-#     existing_documents = [email["email_text"] for email in existing_emails]
-    
-#     # Combine existing and new documents
-#     all_documents = existing_documents + new_documents
-    
-#     # Fit the model with updated dataset
-#     topics, _ = topic_model.fit_transform(all_documents)
-#     topic_model.save(model_file)
-    
-#     # Prepare topics info
-#     topic_info = topic_model.get_topic_info()
-#     topics_array = np.array(topics)
-#     topics_series = pd.Series(topics_array)  # Convert to Series for mapping
-#     email_df = pd.DataFrame({
-#          "email_id": [email["email_id"] for email in existing_emails] + [None] * len(new_documents),
-#          "group_id": topics_array,
-#          "topic_name": topics_series.map(lambda tid: "Outlier" if tid == -1 else (topic_info.loc[tid, "Name"] if tid in topic_info.index else f"Topic {tid}"))
-#     })
-    
-#     # Store updated topics in database
-#     store_topics_in_db(user_email, email_df)
-    
-#     return {"message": "BERTopic model updated successfully", "topics": email_df.to_dict(orient="records")}
+def insert_new_email(user_email: str, subj: str, summary: str, date_sent: Optional[datetime]=None) -> int:
+    """
+    Insert a new email into the Emails table and return its email_id.
+    """
+    if date_sent is None:
+        date_sent = datetime.now()
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            INSERT INTO Emails (user_email_address, subj, summary, date_sent)
+            VALUES (%s, %s, %s, %s)
+            RETURNING email_id
+            """,
+            (user_email, subj, summary, date_sent)
+        )
+        email_id = cur.fetchone()[0]
+        conn.commit()
+        return email_id
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        release_db_connection(conn)
 
+# Pydantic model for a new email request
+class NewEmailRequest(BaseModel):
+    user_email: str
+    subject: str
+    summary: str
+    date_sent: Optional[datetime] = None
+
+@app.post("/add_email_assign_topic")
+def add_email_assign_topic(request: NewEmailRequest):
+    """
+    Insert a new email and assign it the best matching topic based on similarity
+    with existing topics. If a similar topic is found, update the GroupEmail
+    table accordingly.
+    """
+    # 1. Insert the new email into the Emails table.
+    try:
+        email_id = insert_new_email(request.user_email, request.subject, request.summary, request.date_sent)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error inserting new email: {e}")
+    
+    # 2. Prepare the new email text.
+    new_email_text = f"{request.subject} {request.summary}".strip()
+    
+    # 3. Fetch existing topics for this user.
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT group_id, name FROM Groups WHERE user_email_address = %s",
+            (request.user_email,)
+        )
+        topics = cur.fetchall()  # Each row is (group_id, topic_name)
+    finally:
+        release_db_connection(conn)
+    
+    if not topics:
+        raise HTTPException(status_code=404, detail="No topics exist for this user. Please create topics first.")
+    
+    # 4. Compute similarity between new email text and each existing topic name.
+    topic_names = [t[1] for t in topics]
+    vectorizer = TfidfVectorizer().fit(topic_names + [new_email_text])
+    topic_vectors = vectorizer.transform(topic_names)
+    new_email_vector = vectorizer.transform([new_email_text])
+    similarities = cosine_similarity(new_email_vector, topic_vectors)[0]
+    best_index = similarities.argmax()
+    best_topic = topic_names[best_index]
+    best_group_id = topics[best_index][0]
+    
+    # 5. Update the GroupEmail table for this new email with the best matching topic.
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            INSERT INTO GroupEmail (user_email_address, group_id, email_id)
+            VALUES (%s, %s, %s)
+            ON CONFLICT DO NOTHING
+            """,
+            (request.user_email, best_group_id, email_id)
+        )
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Error updating topic assignment: {e}")
+    finally:
+        release_db_connection(conn)
+    
+    return {
+        "message": "New email inserted and assigned to best matching topic.",
+        "email_id": email_id,
+        "assigned_topic": best_topic,
+        "group_id": best_group_id
+    }
