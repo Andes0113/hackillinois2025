@@ -29,6 +29,13 @@ function stripLink(text: string) : string {
   return text.replace(/https?:\/\/[^\s]+|www\.[^\s]+/g, '');
 }
 
+function busyWait(ms: number) {
+  const start = new Date().getTime();
+  while (new Date().getTime() - start < ms) {
+  }
+}
+
+
 async function generateSummary(subject: string | undefined, body: string | undefined, emailId: string | null | undefined) : Promise<string> {
   if (subject === undefined || body === undefined || !emailId || emailId  == undefined) {
     return "No subject or body";
@@ -54,9 +61,11 @@ async function generateSummary(subject: string | undefined, body: string | undef
       `;
       
       const res2 = await client.query(query2, [emailId]);
+      console.log("exists already");
       return res2.rows[0];
     }
-    let waitTime = 5000;
+    let waitTime = 10000;
+    const maxWaitTime = 60000;
     while (true) {
       try {
         const response = await openai.chat.completions.create({
@@ -72,14 +81,18 @@ async function generateSummary(subject: string | undefined, body: string | undef
         });
       
         const summary = response.choices?.[0]?.message?.content?.trim() || "No summary generated.";
+        console.log(
+          'successful'
+        );
         return summary;
     
-      }
-        catch (error: any) {
-          if (error.response?.status === 429) {
-            // console.warn(`Rate limited. Retrying in ${waitTime / 1000} seconds...`);
-            await new Promise(resolve => setTimeout(resolve, waitTime));
-            waitTime *= 2;
+      } catch (error: any) {
+          console.log("eerror: ", error);
+          if (error.status === 429 || error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT')  {
+            console.log("in error status");
+            console.warn(`Rate limited. Retrying in ${waitTime / 1000} seconds...`);
+            busyWait(waitTime);
+            // waitTime = Math.min(waitTime * 2, maxWaitTime);
           } else {
             console.error("Error generating summary:", error);
             return "Error generating summary.";
@@ -109,6 +122,7 @@ export async function fetchEmailById(gmailClient: gmail_v1.Gmail, id?: string) {
     };
   }
   let waitTime = 5000;
+  const maxWaitTime = 60000;
   while (true) {
     try {
       const email = await gmailClient.users.messages.get({
@@ -151,8 +165,8 @@ export async function fetchEmailById(gmailClient: gmail_v1.Gmail, id?: string) {
     } catch (err: any) {
       if (err.code === 403 || err.code === 429) {
         console.log("waiting");
-        await new Promise(resolve => setTimeout(resolve, waitTime));
         waitTime *= 2;
+        busyWait(waitTime);
       } else {
         console.error('Error fetching emails:', err);
         return {};
@@ -230,7 +244,7 @@ export async function fetchAndStoreEmails(userEmail: string, accessToken: string
       VALUES ${emails.map((_, i) => 
         `($${i*8+1}, $${i*8+2}, $${i*8+3}, $${i*8+4}, $${i*8+5}, $${i*8+6}, $${i*8+7}, $${i*8+8})`
       ).join(', ')}
-      ON CONFLICT (email_id) DO NOTHING;
+      ON CONFLICT (email_id) DO REPLACE;
     `;
 
     const values = await Promise.all(emails.map(async email => [
