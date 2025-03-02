@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, FormEvent } from 'react';
 import { useEmailContext } from 'app/contexts/EmailContext';
-import { EmailType } from 'types';
+import { EmailType } from '../../types';
 
 const EmailContextTestForm: React.FC = () => {
   const {
