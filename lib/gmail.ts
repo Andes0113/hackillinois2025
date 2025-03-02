@@ -1,3 +1,4 @@
+'use server';
 // gmail.ts
 import { gmail_v1, google } from 'googleapis';
 import { client } from './db';
@@ -22,10 +23,10 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-function stripImage(text: string) : string {
+function stripImage(text: string): string {
   return text.replace(/\[image:\s*(?:.|\n)*?\]/g, '');
 }
-function stripLink(text: string) : string {
+function stripLink(text: string): string {
   return text.replace(/https?:\/\/[^\s]+|www\.[^\s]+/g, '');
 }
 
@@ -176,7 +177,10 @@ export async function fetchEmailById(gmailClient: gmail_v1.Gmail, id?: string) {
   }
 }
 
-export async function batchFetchEmailContent(accessToken: string, ids: string[]) {
+export async function batchFetchEmailContent(
+  accessToken: string,
+  ids: string[]
+) {
   try {
     const auth = new google.auth.OAuth2();
     auth.setCredentials({ access_token: accessToken });
@@ -184,9 +188,9 @@ export async function batchFetchEmailContent(accessToken: string, ids: string[])
 
     const gmail = google.gmail({ version: 'v1', auth });
 
-    const emails = await Promise.all(ids.map((id) => 
-      fetchEmailById(gmail, id)
-    ));
+    const emails = await Promise.all(
+      ids.map((id) => fetchEmailById(gmail, id))
+    );
 
     return emails;
   } catch (err) {
@@ -195,7 +199,11 @@ export async function batchFetchEmailContent(accessToken: string, ids: string[])
   }
 }
 
-export default async function fetchEmails(accessToken: string, daysAgo: number) {
+export default async function fetchEmails(
+  accessToken: string,
+  daysAgo: number
+) {
+  console.log('fetching emails...');
   try {
     const auth = new google.auth.OAuth2();
     auth.setCredentials({ access_token: accessToken });
@@ -235,7 +243,11 @@ export default async function fetchEmails(accessToken: string, daysAgo: number) 
   }
 }
 
-export async function fetchAndStoreEmails(userEmail: string, accessToken: string, daysAgo: number) {
+export async function fetchAndStoreEmails(
+  userEmail: string,
+  accessToken: string,
+  daysAgo: number
+) {
   const emails = await fetchEmails(accessToken, daysAgo);
 
   try {
@@ -262,4 +274,44 @@ export async function fetchAndStoreEmails(userEmail: string, accessToken: string
   } catch (err) {
     console.error('Error inserting emails:', err);
   }
- }
+
+  // console.log(emails);
+}
+
+export async function sendEmail(
+  accessToken: string,
+  userEmail: string,
+  subject: string,
+  recipient: string,
+  body: string
+) {
+  console.log('access: ', accessToken);
+  const auth = new google.auth.OAuth2();
+  auth.setCredentials({ access_token: accessToken });
+  const tokenInfo = await auth.getTokenInfo(accessToken);
+
+  const message = [
+    `From: ${userEmail}`,
+    `To: ${recipient}`,
+    `Subject: ${subject}`,
+    'Content-Type: text/plain; charset=utf-8',
+    'MIME-Version: 1.0',
+    '',
+    body
+  ].join('\r\n');
+
+  const encodedMessage = Buffer.from(message)
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+
+  const gmail = google.gmail({ version: 'v1', auth });
+
+  await gmail.users.messages.send({
+    userId: 'me',
+    requestBody: {
+      raw: encodedMessage
+    }
+  });
+}
