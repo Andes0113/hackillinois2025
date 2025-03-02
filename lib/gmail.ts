@@ -56,7 +56,7 @@ async function generateSummary(subject: string | undefined, body: string | undef
       const res2 = await client.query(query2, [emailId]);
       return res2.rows[0];
     }
-    let waitTime = 1000;
+    let waitTime = 5000;
     while (true) {
       try {
         const response = await openai.chat.completions.create({
@@ -77,9 +77,8 @@ async function generateSummary(subject: string | undefined, body: string | undef
       }
         catch (error: any) {
           if (error.response?.status === 429) {
-            // **Rate Limited: Wait & Retry**
             // console.warn(`Rate limited. Retrying in ${waitTime / 1000} seconds...`);
-            await new Promise(resolve => setTimeout(resolve, 30000));
+            await new Promise(resolve => setTimeout(resolve, waitTime));
             waitTime *= 2;
           } else {
             console.error("Error generating summary:", error);
@@ -94,7 +93,22 @@ async function generateSummary(subject: string | undefined, body: string | undef
 export async function fetchEmailById(gmailClient: gmail_v1.Gmail, id?: string) {
   if (!id) return { subject: 'No ID', from: 'Unknown' };
 
-  let waitTime = 1000;
+  const query = "SELECT * FROM Emails WHERE email_id = $1";
+  const res = await client.query(query, [id]);
+
+  if (res.rows.length > 0) {
+    const emailData = res.rows[0];
+    return {
+      subject: emailData.subj,
+      from: emailData.sender_email,
+      to: emailData.receiver_emails,
+      message_id: emailData.email_id,
+      dateSent: emailData.date_sent?.toISOString(),
+      strippedBody: emailData.body,
+      summary: emailData.summary
+    };
+  }
+  let waitTime = 5000;
   while (true) {
     try {
       const email = await gmailClient.users.messages.get({
@@ -137,7 +151,7 @@ export async function fetchEmailById(gmailClient: gmail_v1.Gmail, id?: string) {
     } catch (err: any) {
       if (err.code === 403 || err.code === 429) {
         console.log("waiting");
-        await new Promise(resolve => setTimeout(resolve, 30000));
+        await new Promise(resolve => setTimeout(resolve, waitTime));
         waitTime *= 2;
       } else {
         console.error('Error fetching emails:', err);
