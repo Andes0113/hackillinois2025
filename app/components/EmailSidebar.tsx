@@ -20,16 +20,22 @@ const EmailBlock = ({ email }: { email: EmailType }) => {
 };
 
 export default function EmailSidebar() {
-  const { emails, emailsLoading } = useEmailContext();
+  const { emails, groups, groupsLoading, emailsLoading, selectedGroupId } = useEmailContext();
 
   if (emailsLoading) {
     return <div></div>;
   }
-  // console.log(emails);
+  
+  let filteredEmails = []
+  if (selectedGroupId) {
+    filteredEmails = groups.find((group) => group.group_id == selectedGroupId)!.emails;
+  } else {
+    filteredEmails = emails;
+  }
 
   return (
     <div className="border-r border-gray-400 max-w-96 max-h-screen overflow-auto">
-      {emails.map((email) => (
+      {filteredEmails.map((email) => (
         <EmailBlock email={email} key={email.message_id} />
       ))}
     </div>
