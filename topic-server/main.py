@@ -6,6 +6,8 @@ from bertopic import BERTopic
 from fastapi import FastAPI, HTTPException, Query, Body
 from typing import List, Dict, Tuple
 from psycopg2.pool import SimpleConnectionPool
+from sklearn.feature_extraction.text import CountVectorizer
+
 
 app = FastAPI()
 
@@ -36,7 +38,7 @@ def fetch_user_emails(user_email: str) -> List[Dict]:
     try:
         cur = conn.cursor()
         cur.execute(
-            "SELECT email_id, subj, body FROM Emails WHERE user_email_address = %s",
+            "SELECT email_id, subj, summary FROM Emails WHERE user_email_address = %s",
             (user_email,)
         )
         rows = cur.fetchall()
@@ -47,8 +49,8 @@ def fetch_user_emails(user_email: str) -> List[Dict]:
     for row in rows:
         email_id = row[0]
         subj = row[1] if row[1] is not None else ""
-        body = row[2] if row[2] is not None else ""
-        email_text = (subj + " " + body).strip()
+        summary = row[2] if row[2] is not None else ""
+        email_text = (subj + " " + summary).strip()
         emails.append({"email_id": email_id, "email_text": email_text})
     return emails
 
@@ -118,16 +120,10 @@ def fetch_recent_emails(user_email: str, limit: int = 50):
     return [{"email_id": row[0], "subject": row[1], "body": row[2]} for row in rows]
 
 def fetch_topics_by_timeframe(user_email: str, timeframe: str):
-    """Fetch topics and corresponding emails for a given timeframe."""
-    timeframes = {
-        "1_month": "INTERVAL '1 month'",
-        "3_months": "INTERVAL '3 months'",
-        "1_year": "INTERVAL '1 year'",
-        "5_years": "INTERVAL '5 years'",
-        "all_time": "INTERVAL '100 years'"
-    }
-    
-    if timeframe not in timeframes:
+    """Fetch topics and corresponding emails for a given timeframe.
+       NOTE: Since the Emails table has no timestamp column, the timeframe filter is omitted.
+    """
+    if timeframe not in {"1_month", "3_months", "1_year", "5_years", "all_time"}:
         raise HTTPException(status_code=400, detail="Invalid timeframe")
     
     conn = get_db_connection()
@@ -140,7 +136,6 @@ def fetch_topics_by_timeframe(user_email: str, timeframe: str):
             JOIN Groups g ON ge.group_id = g.group_id
             JOIN Emails e ON ge.email_id = e.email_id
             WHERE ge.user_email_address = %s
-            AND e.email_id >= NOW() - """ + timeframes[timeframe] + """
             ORDER BY e.email_id DESC
             """,
             (user_email,)
@@ -168,8 +163,21 @@ def get_topics(user_email: str = Query(..., description="User's email address"))
         try:
             topic_model = BERTopic.load(model_file)
             topics, _ = topic_model.transform(documents)
-        except:
-            topic_model = BERTopic()
+        except Exception as e:
+            print(f"Error loading model: {e}")
+        except Exception as e:
+            print(f"Error loading model: {e}")
+            # topic_model = BERTopic()
+            custom_stopwords = ["the", "and", "to", "for", "of", "a", "in", "on"]
+
+            vectorizer_model = CountVectorizer(stop_words=custom_stopwords)
+
+            topic_model = BERTopic(
+                vectorizer_model=vectorizer_model,
+                umap_model_params={"n_neighbors": 15, "min_dist": 0.0},
+                hdbscan_model_params={"min_cluster_size": 10},
+                nr_topics="auto"
+            )
             topics, _ = topic_model.fit_transform(documents)
     else:
         topic_model = BERTopic()
@@ -197,6 +205,63 @@ def get_topics(user_email: str = Query(..., description="User's email address"))
 def read_root():
     return {"Hello": "World"}
 
+@app.get("/recent_emails")
+def get_recent_emails(user_email: str = Query(..., description="User's email address")):
+    """Get the most recent 50 emails."""
+    return fetch_recent_emails(user_email)
+
+@app.get("/topics_by_timeframe")
+def get_topics_by_timeframe(user_email: str = Query(...), timeframe: str = Query(..., description="Choose from: 1_month, 3_months, 1_year, 5_years, all_time")):
+    """Get topics and corresponding emails from a given timeframe."""
+    return fetch_topics_by_timeframe(user_email, timeframe)
+
+@app.post("/update_topics")
+def update_topics(
+    user_email: str = Query(..., description="User's email address"),
+    new_documents: List[str] = Body(..., description="List of new email texts")
+):
+    """
+    Update the BERTopic model with new topics given additional documents.
+    """
+    model_file = f"bertopic_{user_email}.pkl"
+    
+    # Load existing model if available
+    if os.path.exists(model_file):
+        try:
+            topic_model = BERTopic.load(model_file)
+        except Exception as e:
+            print(f"Error loading model: {e}")
+            topic_model = BERTopic()
+    else:
+        topic_model = BERTopic()
+    
+    # Fetch existing emails to maintain the datasetgit 
+    existing_emails = fetch_user_emails(user_email)
+    existing_documents = [email["email_text"] for email in existing_emails]
+    
+    # Combine existing and new documents
+    all_documents = existing_documents + new_documents
+    
+    # Fit the model with updated dataset
+    topics, _ = topic_model.fit_transform(all_documents)
+    topic_model.save(model_file)
+    
+    # Prepare topics info
+    topic_info = topic_model.get_topic_info()
+    topics_array = np.array(topics)
+    topics_series = pd.Series(topics_array)  # Convert to Series for mapping
+    email_df = pd.DataFrame({
+         "email_id": [email["email_id"] for email in existing_emails] + [None] * len(new_documents),
+         "group_id": topics_array,
+         "topic_name": topics_series.map(lambda tid: "Outlier" if tid == -1 else (topic_info.loc[tid, "Name"] if tid in topic_info.index else f"Topic {tid}"))
+    })
+    
+    # Store updated topics in database
+    store_topics_in_db(user_email, email_df)
+    
+    return {"message": "BERTopic model updated successfully", "topics": email_df.to_dict(orient="records")}
+
+
 
 @app.get("/recent_emails")
 def get_recent_emails(user_email: str = Query(..., description="User's email address")):
@@ -207,3 +272,50 @@ def get_recent_emails(user_email: str = Query(..., description="User's email add
 def get_topics_by_timeframe(user_email: str = Query(...), timeframe: str = Query(..., description="Choose from: 1_month, 3_months, 1_year, 5_years, all_time")):
     """Get topics and corresponding emails from a given timeframe."""
     return fetch_topics_by_timeframe(user_email, timeframe)
+
+@app.post("/update_topics")
+def update_topics(
+    user_email: str = Query(..., description="User's email address"),
+    new_documents: List[str] = Body(..., description="List of new email texts")
+):
+    """
+    Update the BERTopic model with new topics given additional documents.
+    """
+    model_file = f"bertopic_{user_email}.pkl"
+    
+    # Load existing model if available
+    if os.path.exists(model_file):
+        try:
+            topic_model = BERTopic.load(model_file)
+        except Exception as e:
+            print(f"Error loading model: {e}")
+            topic_model = BERTopic()
+    else:
+        topic_model = BERTopic()
+    
+    # Fetch existing emails to maintain the dataset
+    existing_emails = fetch_user_emails(user_email)
+    existing_documents = [email["email_text"] for email in existing_emails]
+    
+    # Combine existing and new documents
+    all_documents = existing_documents + new_documents
+    
+    # Fit the model with updated dataset
+    topics, _ = topic_model.fit_transform(all_documents)
+    topic_model.save(model_file)
+    
+    # Prepare topics info
+    topic_info = topic_model.get_topic_info()
+    topics_array = np.array(topics)
+    topics_series = pd.Series(topics_array)  # Convert to Series for mapping
+    email_df = pd.DataFrame({
+         "email_id": [email["email_id"] for email in existing_emails] + [None] * len(new_documents),
+         "group_id": topics_array,
+         "topic_name": topics_series.map(lambda tid: "Outlier" if tid == -1 else (topic_info.loc[tid, "Name"] if tid in topic_info.index else f"Topic {tid}"))
+    })
+    
+    # Store updated topics in database
+    store_topics_in_db(user_email, email_df)
+    
+    return {"message": "BERTopic model updated successfully", "topics": email_df.to_dict(orient="records")}
+
