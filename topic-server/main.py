@@ -860,6 +860,112 @@ def get_topics_by_timeframe(user_email: str = Query(...), timeframe: str = Query
     """Get topics and corresponding emails from a given timeframe."""
     return fetch_topics_by_timeframe(user_email, timeframe)
 
+class TopicReassignmentRequest(BaseModel):
+    user_email: str
+    email_id: int
+    new_topic: str
+
+@app.post("/reassign_topic")
+def reassign_topic(request: TopicReassignmentRequest):
+    """
+    Reassign the topic for a specific email.
+    
+    - If the provided new_topic already exists for the user, simply update the email's topic.
+    - If it's a new topic, re-run the BERTopic model on all emails to update the topics.
+      If the new topic appears in the updated model, use its group id;
+      otherwise, create a new group id and assign that topic.
+    """
+    user_email = request.user_email
+    email_id = request.email_id
+    new_topic = request.new_topic.strip()
+
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor()
+        # Check if the new_topic already exists for this user in Groups
+        cur.execute(
+            "SELECT group_id FROM Groups WHERE user_email_address = %s AND name = %s",
+            (user_email, new_topic)
+        )
+        result = cur.fetchone()
+        if result is not None:
+            # Existing topic found: update the email's topic assignment.
+            group_id = result[0]
+            cur.execute(
+                """
+                INSERT INTO GroupEmail (user_email_address, group_id, email_id)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (user_email_address, group_id, email_id) DO UPDATE SET group_id = EXCLUDED.group_id
+                """,
+                (user_email, group_id, email_id)
+            )
+            conn.commit()
+            return {"message": "Email assigned to existing topic.", "group_id": group_id}
+        else:
+            # New topic: re-run the BERTopic model on all emails for the user.
+            emails = fetch_user_emails(user_email)
+            if not emails:
+                raise HTTPException(status_code=404, detail="No emails found for this user.")
+            
+            documents = [email["email_text"] for email in emails]
+            custom_stopwords = ["the", "and", "to", "for", "of", "a", "in", "on", "email"]
+            vectorizer_model = CountVectorizer(stop_words=custom_stopwords)
+            umap_model = UMAP(n_neighbors=10, min_dist=0.1)
+            hdbscan_model = hdbscan.HDBSCAN(min_cluster_size=3)
+            topic_model = BERTopic(
+                vectorizer_model=vectorizer_model,
+                umap_model=umap_model,
+                hdbscan_model=hdbscan_model,
+                nr_topics="auto",
+                low_memory=False
+            )
+            topics, _ = topic_model.fit_transform(documents)
+            # Optionally, save the updated model (here we use an "all_time" model file)
+            model_file = f"bertopic_{user_email}_all_time.pkl"
+            topic_model.save(model_file)
+            topic_info = topic_model.get_topic_info()
+            
+            # Check if the new_topic appears in the updated topic_info
+            if new_topic in topic_info["Name"].values:
+                # Get the group id associated with new_topic from the model's output.
+                # Assuming the topic_info DataFrame has a "Topic" column as index.
+                group_id = int(topic_info[topic_info["Name"] == new_topic].iloc[0]["Topic"])
+            else:
+                # If the new topic isn't part of the model output,
+                # create a new group id by taking the current maximum and adding one.
+                cur.execute(
+                    "SELECT COALESCE(MAX(group_id), 0) FROM Groups WHERE user_email_address = %s",
+                    (user_email,)
+                )
+                max_group = cur.fetchone()[0]
+                group_id = max_group + 1
+            
+            # Insert (or update) the new topic into the Groups table.
+            cur.execute(
+                """
+                INSERT INTO Groups (user_email_address, group_id, name)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (group_id) DO UPDATE SET name = EXCLUDED.name
+                """,
+                (user_email, group_id, new_topic)
+            )
+            # Update the GroupEmail table for the given email.
+            cur.execute(
+                """
+                INSERT INTO GroupEmail (user_email_address, group_id, email_id)
+                VALUES (%s, %s, %s)
+                ON CONFLICT DO NOTHING
+                """,
+                (user_email, group_id, email_id)
+            )
+            conn.commit()
+            return {"message": "New topic created and email assigned.", "group_id": group_id}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        release_db_connection(conn)
+
 # @app.post("/update_topics")
 # def update_topics(
 #     user_email: str = Query(..., description="User's email address"),
