@@ -11,7 +11,9 @@ CREATE TABLE Emails (
     sender_email TEXT,
     receiver_emails TEXT,
     subj TEXT,
-    body TEXT
+    body TEXT,
+    summary TEXT,
+    date_sent TIMESTAMP
 );
 
 CREATE TABLE GroupEmail (
