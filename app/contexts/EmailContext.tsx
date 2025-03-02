@@ -25,7 +25,7 @@ type EmailContextValues = {
   editGroupName: (groupId: number, name: string) => Promise<void>;
 };
 
-type Group = {
+export type Group = {
   group_id: number;
   name: string;
   emails: EmailType[];
@@ -36,9 +36,9 @@ const EmailContext = createContext<EmailContextValues>({
   emailsLoading: true,
   groups: [],
   groupsLoading: true,
-  fetchAndSetEmails: async () => {},
-  addEmailToGroup: async (groupId: number, emailId: string) => {},
-  editGroupName: async (groupId: number, name: string) => {}
+  fetchAndSetEmails: async () => { },
+  addEmailToGroup: async (groupId: number, emailId: string) => { },
+  editGroupName: async (groupId: number, name: string) => { }
 });
 
 export function useEmailContext() {
@@ -107,7 +107,7 @@ export default function EmailContextProvider({
           name: newName
         }
       ]);
-    } catch (error) {}
+    } catch (error) { }
   }
 
   const value: EmailContextValues = {

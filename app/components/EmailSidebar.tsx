@@ -25,7 +25,7 @@ export default function EmailSidebar() {
   if (emailsLoading) {
     return <div></div>;
   }
-  console.log(emails);
+  // console.log(emails);
 
   return (
     <div className="border-r border-gray-400 max-w-96 max-h-screen overflow-auto">

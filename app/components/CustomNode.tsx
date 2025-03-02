@@ -2,14 +2,10 @@
 
 import React from "react";
 import { Handle, Position, NodeProps } from "reactflow";
+import { EmailType } from "types";
 
 interface CustomNodeProps {
-  sender: string;
-  receiver: string;
-  dateSent: string;
-  subject?: string;
-  message?: string;
-  daysAgo: number;
+  email: EmailType;
   onClick: () => void;
 }
 
@@ -33,9 +29,9 @@ const CustomNode: React.FC<Props> = ({ data }) => {
       }}
 
     >
-      <p>To: {data.receiver}</p>
-      <p>From: {data.sender}</p>
-      <p>Subject: {data.subject}</p>
+      <p>To: {data.email && data.email.to}</p>
+      <p>From: {data.email && data.email.from}</p>
+      <p>Subject: {data.email && data.email.strippedBody}</p>
 
       {/* Top Handles */}
       <Handle type="target" position={Position.Top} id="top-target" style={{ visibility: 'hidden' }} />
