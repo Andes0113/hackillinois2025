@@ -1,7 +1,9 @@
 'use client';
 import fetchEmails from '@/lib/gmail';
 import {
+  createEmailGroups,
   getUserGroups,
+  groupsAreInitialized,
   addEmailToGroup as serverAddEmailToGroup,
   editGroupName as serverEditGroupName
 } from '@/lib/groups';
@@ -73,6 +75,11 @@ export default function EmailContextProvider({
   }
 
   async function fetchAndSetGroups() {
+    const groupsInitialized = await groupsAreInitialized(session!.user!.email!);
+
+    // Costly
+    if (!groupsInitialized) await createEmailGroups(session!.user!.email!);
+
     const groups = await getUserGroups(
       session!.user!.email!,
       session!.accessToken!

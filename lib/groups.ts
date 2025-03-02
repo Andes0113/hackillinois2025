@@ -4,9 +4,23 @@ import axios from 'axios';
 import { client } from './db';
 import { batchFetchEmailContent } from './gmail';
 
+export async function groupsAreInitialized(userEmail: string) {
+  try {
+    const query =
+    'select count(*) from Groups where Groups.user_email_address = $1';
+    const { rows } = await client.query(query, [userEmail]);
+    const numGroups = rows[0].count;
+    
+    return numGroups > 0;
+  } catch (error) {
+    return false;
+  }
+}
+
 // Call to generate the clusters using BERT
 // Don't await on this function
 export async function createEmailGroups(userEmail: string) {
+  console.log('Create Email Groups')
   try {
     await axios.get(process.env.TOPICSERVER_URL!, {
       params: { user_email: userEmail }
