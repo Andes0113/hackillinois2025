@@ -29,8 +29,8 @@ function stripLink(text: string) : string {
   return text.replace(/https?:\/\/[^\s]+|www\.[^\s]+/g, '');
 }
 
-async function generateSummary(subject: string | undefined, body: string | undefined) : Promise<string> {
-  if (subject === undefined || body === undefined) {
+async function generateSummary(subject: string | undefined, body: string | undefined, emailId: string | null | undefined) : Promise<string> {
+  if (subject === undefined || body === undefined || !emailId || emailId  == undefined) {
     return "No subject or body";
   }
   try {
@@ -44,6 +44,19 @@ async function generateSummary(subject: string | undefined, body: string | undef
   
     Provide a structured summary of the email:
     `;
+
+    const query = "SELECT EXISTS (SELECT 1 FROM Emails WHERE email_id = $1)";
+    const res = await client.query(query, [emailId]);
+
+    const emailExists = res.rows[0].exists;
+    if (emailExists) {
+        const query2 = `
+        SELECT summary FROM Emails WHERE email_id = $1;
+      `;
+      
+      const res2 = await client.query(query2, [emailId]);
+      return res2.rows[0];
+    }
   
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -88,7 +101,6 @@ export async function fetchEmailById(gmailClient: gmail_v1.Gmail, id?: string) {
       const parsedDate = new Date(dateHeader);
       dateSent = parsedDate.toISOString().replace("T", " ").split(".")[0]; // Format: 'YYYY-MM-DD HH:MI:SS'
     }
-    console.log("date: ", dateSent);
 
     let body = 'No Body';
     if (email.data.payload?.body?.data) {
@@ -186,7 +198,7 @@ export async function fetchAndStoreEmails(userEmail: string, accessToken: string
       email.to, 
       email.subject, 
       email.strippedBody, 
-      await generateSummary(email.subject, email.strippedBody), 
+      await generateSummary(email.subject, email.strippedBody, email.message_id), 
       email.dateSent
     ])).then(results => results.flat()); // Flatten nested arrays
 
@@ -194,6 +206,4 @@ export async function fetchAndStoreEmails(userEmail: string, accessToken: string
   } catch (err) {
     console.error('Error inserting emails:', err);
   }
-
-  // console.log(emails);
  }
