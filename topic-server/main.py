@@ -12,6 +12,7 @@ from umap import UMAP
 import hdbscan
 from datetime import datetime, timedelta
 from pydantic import BaseModel
+from rake_nltk import Rake
 
 app = FastAPI()
 
@@ -135,7 +136,8 @@ def fetch_topics_by_timeframe(user_email: str, timeframe: str):
     Fetch topics and corresponding emails for a given timeframe.
     NOTE: Adjust the filtering as needed since date_sent is available.
     """
-    valid_timeframes = {"1_month", "3_months", "1_year", "5_years", "all_time"}
+    # valid_timeframes = {"1_month", "3_months", "1_year", "5_years", "all_time"}
+    valid_timeframes = {"1_month", "3_months", "1_year"}
     if timeframe not in valid_timeframes:
         raise HTTPException(status_code=400, detail="Invalid timeframe")
     
@@ -164,15 +166,18 @@ def get_topics(user_email: str = Query(..., description="User's email address"))
     """
     Retrieve topics for a specific user by clustering emails.
     Ensures all emails are retrieved, processed, and stored.
+    Additionally, generates better topic names based on email content.
     """
     emails = fetch_user_emails(user_email)
     print(f"Total emails retrieved: {len(emails)}")
     if not emails:
         raise HTTPException(status_code=404, detail="No emails found for this user.")
     
+    # Prepare the document list for clustering
     documents = [email["email_text"] for email in emails]
     model_file = f"bertopic_{user_email}.pkl"
     
+    # Load or fit the BERTopic model
     if os.path.exists(model_file):
         try:
             topic_model = BERTopic.load(model_file)
@@ -194,17 +199,44 @@ def get_topics(user_email: str = Query(..., description="User's email address"))
             low_memory=False
         )
         topics, _ = topic_model.fit_transform(documents)
-
+    
     topic_model.save(model_file)
     topic_info = topic_model.get_topic_info()
     topics_array = np.array(topics)
+    
+    # Create a DataFrame of emails and assign initial topic names
     email_df = pd.DataFrame(emails)
     email_df["group_id"] = topics_array
     email_df["topic_name"] = email_df["group_id"].map(
-        lambda tid: "Outlier" if tid == -1 else (topic_info.loc[tid, "Name"] if tid in topic_info.index else f"Topic {tid}")
+        lambda tid: "Outlier" if tid == -1 
+                    else (topic_info.loc[tid, "Name"] if tid in topic_info.index 
+                          else f"Topic {tid}")
     )
+    
     if "date_sent" in email_df.columns:
         email_df = email_df.sort_values(by="date_sent", ascending=False)
+    
+    # --- Generate Better Topic Names ---
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    unique_groups = email_df[email_df["group_id"] != -1]["group_id"].unique()
+    for group in unique_groups:
+        group_emails = email_df[email_df["group_id"] == group]["email_text"].tolist()
+        if not group_emails:
+            continue
+        combined_text = " ".join(group_emails)
+        vectorizer = TfidfVectorizer(stop_words="english", max_features=10)
+        tfidf_matrix = vectorizer.fit_transform([combined_text])
+        feature_array = vectorizer.get_feature_names_out()
+        tfidf_scores = tfidf_matrix.toarray().flatten()
+        sorted_indices = np.argsort(tfidf_scores)[::-1]
+        top_keywords = feature_array[sorted_indices][:3]
+        new_topic_name = " ".join(top_keywords)
+        # Update the topic name in both topic_info and email_df
+        if group in topic_info["Topic"].values:
+            topic_info.loc[topic_info["Topic"] == group, "Name"] = new_topic_name
+        email_df.loc[email_df["group_id"] == group, "topic_name"] = new_topic_name
+    
+    # Update the database with the improved topic names
     store_topics_in_db(user_email, email_df)
     
     return {
@@ -212,14 +244,18 @@ def get_topics(user_email: str = Query(..., description="User's email address"))
         "email_topics": email_df[["email_id", "topic_name"]].to_dict(orient="records")
     }
 
+
 @app.get("/topics_incremental")
 def get_topics_incremental(user_email: str = Query(..., description="User's email address")):
     """
     Incrementally generate topic models based on timeframes:
-      - For 3 months or more (3_months, 6_months, 1_year, 3_years): run the BERTopic model.
+      - For timeframes 3 months or more (3_months, 6_months, 1_year, 3_years): 
+          * If a model already exists, load it; otherwise, generate a new BERTopic model.
       - For 1 month: simply filter the first month of emails without topic modeling.
+    
     The models for 3+ month windows are saved separately.
     The endpoint returns the filtered one-month emails and the modeled topics from the 3-month window.
+    It then calls generate_topic_names to refine the topic names.
     """
     emails = fetch_user_emails(user_email)
     if not emails:
@@ -243,31 +279,31 @@ def get_topics_incremental(user_email: str = Query(..., description="User's emai
     ]
     model_configs = {
         "3_months": {
-            "custom_stopwords": ["the", "and", "to", "for", "of", "a", "in", "on", "email"],
-            "umap": {"n_neighbors": 15, "min_dist": 0.2},
+            "custom_stopwords": ["the", "and", "to", "for", "of", "a", "in", "on", "email", "summary", "error", "generating"],
+            "umap": {"n_neighbors": 10, "min_dist": 0.2},
             "hdbscan": {"min_cluster_size": 5},
             "nr_topics": "auto"
         },
         "6_months": {
-            "custom_stopwords": ["the", "and", "to", "for", "of", "a", "in", "on", "email"],
-            "umap": {"n_neighbors": 20, "min_dist": 0.15},
+            "custom_stopwords": ["the", "and", "to", "for", "of", "a", "in", "on", "email", "summary", "error", "generating"],
+            "umap": {"n_neighbors": 15, "min_dist": 0.15},
             "hdbscan": {"min_cluster_size": 4},
             "nr_topics": "auto"
         },
         "1_year": {
-            "custom_stopwords": ["the", "and", "to", "for", "of", "a", "in", "on", "email"],
-            "umap": {"n_neighbors": 25, "min_dist": 0.1},
+            "custom_stopwords": ["the", "and", "to", "for", "of", "a", "in", "on", "email", "summary", "error", "generating"],
+            "umap": {"n_neighbors": 20, "min_dist": 0.1},
             "hdbscan": {"min_cluster_size": 6},
             "nr_topics": "auto"
         },
         "3_years": {
-            "custom_stopwords": ["the", "and", "to", "for", "of", "a", "in", "on", "email"],
-            "umap": {"n_neighbors": 30, "min_dist": 0.05},
+            "custom_stopwords": ["the", "and", "to", "for", "of", "a", "in", "on", "email", "summary", "error", "generating"],
+            "umap": {"n_neighbors": 25, "min_dist": 0.05},
             "hdbscan": {"min_cluster_size": 8},
             "nr_topics": "auto"
         }
     }
-
+    
     output_results = {}
     for label, days in model_time_windows:
         window_df = email_df[email_df["date_sent"] >= (now - pd.Timedelta(days=days))]
@@ -278,26 +314,44 @@ def get_topics_incremental(user_email: str = Query(..., description="User's emai
 
         config = model_configs.get(label)
         model_file = f"bertopic_{user_email}_{label}.pkl"
-        vectorizer_model = CountVectorizer(stop_words=config["custom_stopwords"])
-        umap_model = UMAP(**config["umap"])
-        hdbscan_model = hdbscan.HDBSCAN(**config["hdbscan"])
-        topic_model = BERTopic(
-            vectorizer_model=vectorizer_model,
-            umap_model=umap_model,
-            hdbscan_model=hdbscan_model,
-            nr_topics=config["nr_topics"],
-            low_memory=False
-        )
-        topics, _ = topic_model.fit_transform(documents)
-        topic_model.save(model_file)
+        
+        # If a model file already exists, load it; otherwise, create a new model.
+        if os.path.exists(model_file):
+            try:
+                topic_model = BERTopic.load(model_file)
+                topics, _ = topic_model.transform(documents)
+            except Exception as e:
+                print(f"Error loading model for {label}: {e}")
+                topic_model = BERTopic(
+                    vectorizer_model=CountVectorizer(stop_words=config["custom_stopwords"]),
+                    umap_model=UMAP(**config["umap"]),
+                    hdbscan_model=hdbscan.HDBSCAN(**config["hdbscan"]),
+                    nr_topics=config["nr_topics"],
+                    low_memory=False
+                )
+                topics, _ = topic_model.fit_transform(documents)
+                topic_model.save(model_file)
+        else:
+            topic_model = BERTopic(
+                vectorizer_model=CountVectorizer(stop_words=config["custom_stopwords"]),
+                umap_model=UMAP(**config["umap"]),
+                hdbscan_model=hdbscan.HDBSCAN(**config["hdbscan"]),
+                nr_topics=config["nr_topics"],
+                low_memory=False
+            )
+            topics, _ = topic_model.fit_transform(documents)
+            topic_model.save(model_file)
+        
         topic_info = topic_model.get_topic_info()
         topics_array = np.array(topics)
         window_df = window_df.copy()
         window_df["group_id"] = topics_array
         window_df["topic_name"] = window_df["group_id"].map(
-            lambda tid: "Outlier" if tid == -1 else (topic_info.loc[tid, "Name"] if tid in topic_info.index else f"Topic {tid}")
+            lambda tid: "Outlier" if tid == -1 
+                        else (topic_info.loc[tid, "Name"] if tid in topic_info.index else f"Topic {tid}")
         )
         store_topics_in_db(user_email, window_df)
+        
         # Return only the 3_months result for output purposes
         if label == "3_months":
             output_results[label] = {
@@ -305,10 +359,17 @@ def get_topics_incremental(user_email: str = Query(..., description="User's emai
                 "topics": topic_info.to_dict(),
                 "email_topics": window_df[["email_id", "topic_name"]].to_dict(orient="records")
             }
+    
     output_results["1_month"] = {
         "filtered_emails": one_month_df[["email_id", "topic_name", "date_sent"]].to_dict(orient="records")
     }
+    
+    # Call the existing generate_topic_names endpoint to refine topic names.
+    refined_result = generate_topic_names(user_email)
+    output_results["refined_topic_names"] = refined_result.get("updated_topic_names", {})
+
     return output_results
+
 
 @app.get("/recent_emails")
 def get_recent_emails(user_email: str = Query(..., description="User's email address")):
@@ -549,9 +610,9 @@ def generate_topic_names(user_email: str = Query(..., description="User's email 
     Generate better names for topics for a given user.
     
     For each topic in the Groups table (except placeholders), the endpoint:
-      - Retrieves associated email texts.
-      - Aggregates the texts and extracts the top keywords using TF-IDF.
-      - Creates a new topic name from these keywords.
+      - Retrieves associated email texts by concatenating subject and summary.
+      - Aggregates the texts and extracts the top key phrases using RAKE.
+      - Creates a new topic name from these phrases.
       - Updates the Groups table with the new name.
     
     Returns a mapping of group_id to the updated topic names.
@@ -567,19 +628,22 @@ def generate_topic_names(user_email: str = Query(..., description="User's email 
     
     updated_topic_names = {}
     
+    # Define custom stopwords (you can add more if needed)
+    custom_stopwords = set(["summary", "generating", "error"])
+    
     for group_id, old_name in topics:
         # Skip placeholders/outliers (e.g., group_id == -99 or names with "Not Modeled")
         if group_id == -99 or "Not Modeled" in old_name:
             updated_topic_names[group_id] = old_name
             continue
         
-        # Fetch email texts associated with this topic
+        # Fetch email texts associated with this topic by concatenating subj and summary
         conn = get_db_connection()
         try:
             cur = conn.cursor()
             cur.execute(
                 """
-                SELECT e.email_text
+                SELECT COALESCE(e.subj, '') || ' ' || COALESCE(e.summary, '') AS email_text
                 FROM Emails e
                 JOIN GroupEmail ge ON e.email_id = ge.email_id
                 WHERE ge.user_email_address = %s AND ge.group_id = %s
@@ -594,16 +658,15 @@ def generate_topic_names(user_email: str = Query(..., description="User's email 
             updated_topic_names[group_id] = old_name
             continue
         
-        # Combine email texts and extract keywords using TF-IDF
+        # Combine email texts
         combined_text = " ".join(email_texts)
-        vectorizer = TfidfVectorizer(stop_words="english", max_features=10)
-        tfidf_matrix = vectorizer.fit_transform([combined_text])
-        feature_array = np.array(vectorizer.get_feature_names_out())
-        # Get the top 3 keywords (if available)
-        tfidf_scores = tfidf_matrix.toarray().flatten()
-        sorted_indices = np.argsort(tfidf_scores)[::-1]
-        top_keywords = feature_array[sorted_indices][:3]
-        new_name = " ".join(top_keywords)
+        
+        # Use RAKE to extract key phrases
+        rake_extractor = Rake(stopwords=custom_stopwords, min_length=1, max_length=3)
+        rake_extractor.extract_keywords_from_text(combined_text)
+        # Get the top 3 ranked phrases
+        key_phrases = rake_extractor.get_ranked_phrases()[:3]
+        new_name = " ".join(key_phrases) if key_phrases else old_name
         
         updated_topic_names[group_id] = new_name
         
@@ -627,8 +690,6 @@ def generate_topic_names(user_email: str = Query(..., description="User's email 
             release_db_connection(conn)
     
     return {"updated_topic_names": updated_topic_names}
-
-
 
 
 # @app.get("/topics")
