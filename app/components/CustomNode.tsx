@@ -3,9 +3,23 @@
 import React from "react";
 import { Handle, Position, NodeProps } from "reactflow";
 
-const CustomNode: React.FC<NodeProps> = ({ data }) => {
+interface CustomNodeProps {
+  to: string;
+  from: string;
+  body: string;
+  date: string;
+  attachments: string[];
+  labels: string[];
+  daysAgo: number;
+  onClick: () => void;
+}
+
+type Props = NodeProps<CustomNodeProps>;
+
+const CustomNode: React.FC<Props> = ({ data }) => {
+
   const handleClick = () => {
-    alert(`Node clicked: ${data.label}`);
+    data.onClick();
   };
 
   return (
@@ -19,13 +33,15 @@ const CustomNode: React.FC<NodeProps> = ({ data }) => {
         cursor: "pointer",
       }}
     >
-      <strong>{data.label}</strong>
+      <p>To: {data.to}</p>
+      <p>From: {data.from}</p>
+      <p>Body: {data.body}</p>
 
       {/* Input Handle */}
-      <Handle type="target" position={Position.Left} style={{ background: "red" }} />
+      <Handle type="target" position={Position.Top} style={{ background: "red" }} />
 
       {/* Output Handle */}
-      <Handle type="source" position={Position.Right} style={{ background: "green" }} />
+      <Handle type="source" position={Position.Bottom} style={{ background: "green" }} />
     </div>
   );
 };

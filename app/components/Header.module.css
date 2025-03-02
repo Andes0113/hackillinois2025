@@ -1,0 +1,38 @@
+/* Header.module.css */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  background-color: #f5f5f5;
+  border-bottom: 1px solid #ddd;
+}
+
+.logo {
+  font-size: 24px;
+}
+
+.title {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.buttonContainer {
+  display: flex;
+  align-items: center;
+}
+
+.button {
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  border: none;
+  border-radius: 5px;
+  background-color: #0070f3;
+  color: #fff;
+  transition: background-color 0.3s ease;
+}
+
+.button:hover {
+  background-color: #005bb5;
+}

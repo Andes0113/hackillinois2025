@@ -27,6 +27,7 @@
     "prop-types": "^15.8.1",
     "react": "19.0.0",
     "react-dom": "19.0.0",
+    "react-redux": "^9.2.0",
     "reactflow": "^11.11.4",
     "server-only": "^0.0.1",
     "tailwind-merge": "^2.6.0",
