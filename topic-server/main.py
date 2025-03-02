@@ -151,54 +151,6 @@ def fetch_topics_by_timeframe(user_email: str, timeframe: str):
     
     return [{"group_id": row[0], "topic_name": row[1], "email_id": row[2]} for row in rows]
 
-@app.post("/update_topic")
-def update_topic(user_email: str = Body(...), group_id: int = Body(...), new_name: str = Body(...)):
-    """
-    Update the name of a specific topic.
-    """
-    conn = get_db_connection()
-    try:
-        cur = conn.cursor()
-        cur.execute(
-            """
-            UPDATE Groups
-            SET name = %s
-            WHERE user_email_address = %s AND group_id = %s
-            """,
-            (new_name, user_email, group_id)
-        )
-        conn.commit()
-        return {"message": "Topic updated successfully"}
-    except Exception as e:
-        conn.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        release_db_connection(conn)
-
-@app.post("/add_email_to_topic")
-def add_email_to_topic(user_email: str = Body(...), group_id: int = Body(...), email_id: str = Body(...)):
-    """
-    Add a specific email to an existing topic.
-    """
-    conn = get_db_connection()
-    try:
-        cur = conn.cursor()
-        cur.execute(
-            """
-            INSERT INTO GroupEmail (user_email_address, group_id, email_id)
-            VALUES (%s, %s, %s)
-            ON CONFLICT DO NOTHING
-            """,
-            (user_email, group_id, email_id)
-        )
-        conn.commit()
-        return {"message": "Email added to topic successfully"}
-    except Exception as e:
-        conn.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        release_db_connection(conn)
-
 @app.get("/topics")
 def get_topics(user_email: str = Query(..., description="User's email address")):
     """
