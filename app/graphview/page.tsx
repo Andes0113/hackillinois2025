@@ -1,8 +1,8 @@
 import FlowCanvas from '../components/FlowCanvas';
 
-export default async function graphView() {
+export default function graphView() {
   return (
-    <div className="p-6">
+    <div>
       <FlowCanvas />
     </div>
   );
