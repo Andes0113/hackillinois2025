@@ -1,5 +1,5 @@
 'use client';
-import fetchEmails from '@/lib/gmail';
+import fetchEmails, { fetchAndStoreEmails } from '@/lib/gmail';
 import {
   createEmailGroups,
   getUserGroups,
@@ -44,9 +44,9 @@ const EmailContext = createContext<EmailContextValues>({
   emailsLoading: true,
   groups: [],
   groupsLoading: true,
-  fetchAndSetEmails: async () => { },
-  addEmailToGroup: async (groupId: number, emailId: string) => { },
-  editGroupName: async (groupId: number, name: string) => { }
+  fetchAndSetEmails: async () => {},
+  addEmailToGroup: async (groupId: number, emailId: string) => {},
+  editGroupName: async (groupId: number, name: string) => {}
 });
 
 export function useEmailContext() {
@@ -68,7 +68,7 @@ export default function EmailContextProvider({
 }: EmailContextProviderProps) {
   const { data: session, status } = useSession();
 
-  const [selectedGroupId, setSelectedGroupId] = useState<number| null>(null);
+  const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const [emailsLoading, setEmailsLoading] = useState<Boolean>(true);
   const [emails, setEmails] = useState<EmailType[]>([]);
   const [groupsLoading, setGroupsLoading] = useState<Boolean>(true);
@@ -85,7 +85,14 @@ export default function EmailContextProvider({
     const groupsInitialized = await groupsAreInitialized(session!.user!.email!);
 
     // Costly
-    if (!groupsInitialized) await createEmailGroups(session!.user!.email!);
+    if (!groupsInitialized) {
+      await fetchAndStoreEmails(
+        session!.user!.email!,
+        session!.accessToken!,
+        90
+      );
+      await createEmailGroups(session!.user!.email!);
+    }
 
     const groups = await getUserGroups(
       session!.user!.email!,
@@ -121,7 +128,7 @@ export default function EmailContextProvider({
           name: newName
         }
       ]);
-    } catch (error) { }
+    } catch (error) {}
   }
 
   const value: EmailContextValues = {
