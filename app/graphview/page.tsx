@@ -6,7 +6,8 @@ import { useState } from 'react';
 import { useEmailContext } from 'app/contexts/EmailContext';
 
 export default function graphview() {
-  const { groups, groupsLoading } = useEmailContext();
+  const { groups, groupsLoading, selectedGroupId, setSelectedGroupId } =
+    useEmailContext();
   const [daysAgo, setDaysAgo] = useState(30);
 
   const handleSelectChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
@@ -31,7 +32,13 @@ export default function graphview() {
       </select>
       <div className="flex">
         <EmailSidebar />
-        {!groupsLoading && <FlowCanvas groups={groups} />}
+        {!groupsLoading && (
+          <FlowCanvas
+            groups={groups}
+            selectedGroupId={selectedGroupId}
+            setSelectedGroupId={setSelectedGroupId}
+          />
+        )}
       </div>
     </>
   );

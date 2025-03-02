@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react";
+import React, { Dispatch, SetStateAction, useCallback, useState } from "react";
 import ReactFlow, { Node, Edge, applyEdgeChanges, applyNodeChanges, addEdge, ReactFlowProvider } from "reactflow";
 import "reactflow/dist/style.css";
 import EmailNode from "./EmailNode";
@@ -8,16 +8,20 @@ import EmailPopup from "./EmailPopup";
 import styles from "./FlowCanvas.module.css";
 import { EmailType } from "types";
 import { Group } from "app/contexts/EmailContext";
+import GroupNode from "./GroupNode";
 
 const nodeTypes = {
   email: EmailNode,
+  group: GroupNode
 };
 
 interface FlowDiagramProps {
   groups: Group[];
+  selectedGroupId: number | null;
+  setSelectedGroupId: Dispatch<SetStateAction<number | null>> | null;
 }
 
-const FlowDiagram = ({ groups }: FlowDiagramProps) => {
+const FlowDiagram = ({ groups, selectedGroupId, setSelectedGroupId }: FlowDiagramProps) => {
 
   const [sharedPopupState, setSharedPopupState] = useState<boolean>(false);
   const [selectedEmail, setSelectedEmail] = useState<EmailType | null>(null);
@@ -155,8 +159,8 @@ const FlowDiagram = ({ groups }: FlowDiagramProps) => {
       nodes.push({
         id: centerId,
         position: { x: centerX + j * 300, y: centerY },
-        data: { label: data[j].name },
-        type: 'default',
+        data: { group: data[j], selectedGroupId, setSelectedGroupId },
+        type: 'group',
       });
 
       for (let i = 0; i < data[j].emails.length; i++) {
@@ -184,10 +188,21 @@ const FlowDiagram = ({ groups }: FlowDiagramProps) => {
 
     return { nodes, edges };
   };
-  console.log(groups);
+
   const { nodes: initialNodes, edges: initialEdges } = createGraph(groups);
   const [nodes, setNodes] = useState<Node[]>(initialNodes);
   const [edges, setEdges] = useState<Edge[]>(initialEdges);
+
+  const onSelectionChange = useCallback(({ nodes }: { nodes: Node[] }) => {
+    const selectedGroupNode = nodes.find((node) => node.selected && node.type == 'group')
+    if (setSelectedGroupId) {
+      if (selectedGroupNode) {
+        setSelectedGroupId(selectedGroupNode.data.group.group_id!);
+      } else {
+        setSelectedGroupId(null);
+      }  
+    }
+  }, []);
 
   const onNodesChange = (changes: any) => setNodes((nds) => applyNodeChanges(changes, nds));
   const onEdgesChange = (changes: any) => setEdges((eds) => applyEdgeChanges(changes, eds));
@@ -198,6 +213,7 @@ const FlowDiagram = ({ groups }: FlowDiagramProps) => {
       <div className={styles.flowCanvas}>
         <ReactFlowProvider>
           <ReactFlow
+            onSelectionChange={onSelectionChange}
             className={styles.reactFlow}
             nodes={nodes}
             edges={edges}
