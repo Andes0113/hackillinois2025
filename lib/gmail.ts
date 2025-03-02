@@ -1,6 +1,9 @@
 // gmail.ts
 import { gmail_v1, google } from 'googleapis';
 import { client } from './db';
+import OpenAI from "openai";
+
+
 
 function stripHtml(html: string): string {
   return html
@@ -26,6 +29,45 @@ function stripLink(text: string) : string {
   return text.replace(/https?:\/\/[^\s]+|www\.[^\s]+/g, '');
 }
 
+async function generateSummary(subject: string | undefined, body: string | undefined) : Promise<string> {
+  if (subject === undefined || body === undefined) {
+    return "No subject or body";
+  }
+  try {
+    const openai = new OpenAI();
+    const prompt = `
+    You are an AI assistant that extracts the most important details from an email. Given an email with a title and body, summarize its content in a concise, structured format that captures key topics, intent, and context. Do not use bullet points and keep everything in 1 paragraph. Ignore unnecessary components like HTML, CSS, and URLs. Avoid filler phrases such as "The email" and focus on essential information. The summary should be short but retain all relevant semantic meaning to facilitate similarity comparisons.
+  
+    Title: "${subject}"
+  
+    Body: "${body}"
+  
+    Provide a structured summary of the email:
+    `;
+  
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+          { role: "system", content: "You are an AI assistant that extracts the most important details from an email." },
+          {
+              role: "user",
+              content: prompt,
+          },
+      ],
+      store: true,
+    });
+  
+    const summary = response.choices?.[0]?.message?.content?.trim() || "No summary generated.";
+    return summary;
+
+  }
+    catch (error) {
+      console.error("Error generating summary:", error);
+      return "Error generating summary.";
+  }
+
+}
+
 export async function fetchEmailById(gmailClient: gmail_v1.Gmail, id?: string) {
   if (!id) return { subject: 'No ID', from: 'Unknown' };
 
@@ -40,8 +82,15 @@ export async function fetchEmailById(gmailClient: gmail_v1.Gmail, id?: string) {
     const from = headers.find((h) => h.name === 'From')?.value || 'Unknown Sender';
     const to = headers.find((h) => h.name === 'To')?.value || 'Unknown Receiver';
     const message_id = email.data.id;
-    const date = headers.find((h) => h.name === 'Date-Id')?.value || 'Unknown Date';
-    let body = 'No Body'
+    const dateHeader = headers.find((h) => h.name === 'Date')?.value;
+    let dateSent = null;
+    if (dateHeader) {
+      const parsedDate = new Date(dateHeader);
+      dateSent = parsedDate.toISOString().replace("T", " ").split(".")[0]; // Format: 'YYYY-MM-DD HH:MI:SS'
+    }
+    console.log("date: ", dateSent);
+
+    let body = 'No Body';
     if (email.data.payload?.body?.data) {
       body = Buffer.from(email.data.payload.body.data, 'base64').toString();
     } else if (email.data.payload?.parts) {
@@ -60,7 +109,7 @@ export async function fetchEmailById(gmailClient: gmail_v1.Gmail, id?: string) {
 
     const strippedBody = stripLink(stripImage(stripHtml(body)));
 
-    return { subject, from, to, message_id, date, strippedBody};
+    return { subject, from, to, message_id, dateSent, strippedBody};
   } catch (err) {
     console.error('Error fetching emails:', err);
     return {};
@@ -123,11 +172,23 @@ export async function fetchAndStoreEmails(userEmail: string, accessToken: string
 
   try {
     const query = `
-      INSERT INTO Emails (user_email_address, email_id, sender_email, receiver_emails, subj, body)
-      VALUES ${emails.map((_, i) => `($${i*6+1}, $${i*6+2}, $${i*6+3}, $${i*6+4}, $${i*6+5}, $${i*6+6})`).join(', ')}
-      ON CONFLICT (email_id) DO NOTHING;`;
+      INSERT INTO Emails (user_email_address, email_id, sender_email, receiver_emails, subj, body, summary, date_sent)
+      VALUES ${emails.map((_, i) => 
+        `($${i*8+1}, $${i*8+2}, $${i*8+3}, $${i*8+4}, $${i*8+5}, $${i*8+6}, $${i*8+7}, $${i*8+8})`
+      ).join(', ')}
+      ON CONFLICT (email_id) DO NOTHING;
+    `;
 
-    const values = emails.flatMap(email => [userEmail, email.message_id, email.from, email.to, email.subject, email.strippedBody]);
+    const values = await Promise.all(emails.map(async email => [
+      userEmail, 
+      email.message_id, 
+      email.from, 
+      email.to, 
+      email.subject, 
+      email.strippedBody, 
+      await generateSummary(email.subject, email.strippedBody), 
+      email.dateSent
+    ])).then(results => results.flat()); // Flatten nested arrays
 
     await client.query(query, values);
   } catch (err) {

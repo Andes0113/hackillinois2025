@@ -10,9 +10,9 @@ export default async function HomePage() {
     return <LoginPage />;
   }
 
-  const emails = await fetchEmails(session.accessToken, 30);
+  const emails = await fetchEmails(session.accessToken, 10);
   // console.log(emails);
-  await fetchAndStoreEmails(session.user!.email!, session.accessToken, 30);
+  await fetchAndStoreEmails(session.user!.email!, session.accessToken, 10);
 
   return (
     <div className="p-6">
@@ -20,7 +20,7 @@ export default async function HomePage() {
       <ul>
         {emails.map((email, index) => (
           <li key={index} className="border-b py-2">
-            <strong>{email.subject}</strong> - {email.strippedBody}
+            <strong>{email.subject}</strong> - {email.dateSent}
           </li>
         ))}
       </ul>
