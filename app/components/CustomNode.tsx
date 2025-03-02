@@ -4,12 +4,11 @@ import React from "react";
 import { Handle, Position, NodeProps } from "reactflow";
 
 interface CustomNodeProps {
-  to: string;
-  from: string;
-  body: string;
-  date: string;
-  attachments: string[];
-  labels: string[];
+  sender: string;
+  receiver: string;
+  dateSent: string;
+  subject?: string;
+  message?: string;
   daysAgo: number;
   onClick: () => void;
 }
@@ -32,16 +31,27 @@ const CustomNode: React.FC<Props> = ({ data }) => {
         background: "#f9f9f9",
         cursor: "pointer",
       }}
+
     >
-      <p>To: {data.to}</p>
-      <p>From: {data.from}</p>
-      <p>Body: {data.body}</p>
+      <p>To: {data.receiver}</p>
+      <p>From: {data.sender}</p>
+      <p>Subject: {data.subject}</p>
 
-      {/* Input Handle */}
-      <Handle type="target" position={Position.Top} style={{ background: "red" }} />
+      {/* Top Handles */}
+      <Handle type="target" position={Position.Top} id="top-target" style={{ visibility: 'hidden' }} />
+      <Handle type="source" position={Position.Top} id="top-source" style={{ visibility: 'hidden' }} />
 
-      {/* Output Handle */}
-      <Handle type="source" position={Position.Bottom} style={{ background: "green" }} />
+      {/* Left Handles */}
+      <Handle type="target" position={Position.Left} id="left-target" style={{ visibility: 'hidden' }} />
+      <Handle type="source" position={Position.Left} id="left-source" style={{ visibility: 'hidden' }} />
+
+      {/* Right Handles */}
+      <Handle type="target" position={Position.Right} id="right-target" style={{ visibility: 'hidden' }} />
+      <Handle type="source" position={Position.Right} id="right-source" style={{ visibility: 'hidden' }} />
+
+      {/* Bottom Handles */}
+      <Handle type="target" position={Position.Bottom} id="bottom-target" style={{ visibility: 'hidden' }} />
+      <Handle type="source" position={Position.Bottom} id="bottom-source" style={{ visibility: 'hidden' }} />
     </div>
   );
 };
