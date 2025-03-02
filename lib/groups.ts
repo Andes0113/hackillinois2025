@@ -1,3 +1,5 @@
+'use server';
+
 import axios from 'axios';
 import { client } from './db';
 import { batchFetchEmailContent } from './gmail';
@@ -58,13 +60,9 @@ export async function editGroupName(
   groupId: number,
   newName: string
 ) {
-  try {
-    const query = `update Groups set name=$3 where user_email_address=$1 and group_id=$2`;
-    const values = [userEmail, groupId, newName];
-    await client.query(query, values);
-  } catch (error) {
-    console.log('error adding email to group', error);
-  }
+  const query = `update Groups set name=$3 where user_email_address=$1 and group_id=$2`;
+  const values = [userEmail, groupId, newName];
+  await client.query(query, values);
 }
 
 async function emailExistsInGroup(
