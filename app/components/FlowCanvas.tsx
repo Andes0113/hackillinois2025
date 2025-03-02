@@ -168,7 +168,7 @@ const FlowDiagram = ({ groups }: FlowDiagramProps) => {
 
         nodes.push({
           id: `${j}-${i + 1}`,
-          type: "custom",
+          type: "email",
           position: { x: x, y: y },
           data: { email, onClick: () => updateSharedPopupState(email, true) }
         });
