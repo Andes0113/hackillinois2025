@@ -2,7 +2,7 @@
 import { gmail_v1, google } from 'googleapis';
 import { client } from './db';
 import OpenAI from "openai";
-
+import { GaxiosResponse } from 'gaxios';
 
 
 function stripHtml(html: string): string {
@@ -154,24 +154,34 @@ export default async function fetchEmails(accessToken: string, daysAgo: number) 
 
     const gmail = google.gmail({ version: 'v1', auth });
 
-    const date = new Date();
-    date.setDate(date.getDate() - daysAgo);
-    const formattedDate = `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`;
 
-    // List messages (up to last daysAgo days)
-    const response = await gmail.users.messages.list({
-      userId: 'me',
-      q: `after:${formattedDate}`,
-    });
+    // return emails;
+    let messages = [];
+    let nextPageToken = undefined;
+    do {
+      const response = (await gmail.users.messages.list({
+        userId: 'me',
+        q: `newer_than:${daysAgo}d`,
+        maxResults: 500,
+        pageToken: nextPageToken,
+      })) as unknown as GaxiosResponse<gmail_v1.Schema$ListMessagesResponse>;
+      
+      
 
-    const messages = response.data.messages || [];
+      if (response.data.messages) {
+        const emailDetails = await Promise.all(
+          response.data.messages?.map(async (msg) => msg.id ? fetchEmailById(gmail, msg.id) : null) ?? []
+        );
+        
 
-    // Fetch each email’s details concurrently
-    const emails = await Promise.all(
-      messages.map(async (msg) => fetchEmailById(gmail, msg.id!))
-    );
+          messages.push(...emailDetails);
+      }
 
-    return emails;
+      nextPageToken = response.data.nextPageToken; // Update nextPageToken for next request
+  } while (nextPageToken); // Keep fetching until no more pages
+
+  console.log(`Total emails fetched: ${messages.length}`);
+  return messages.filter(email => email !== null);
   } catch (error) {
     console.error('Error fetching emails:', error);
     return [];
