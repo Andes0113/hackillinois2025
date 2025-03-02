@@ -168,7 +168,7 @@ const FlowDiagram = ({ groups }: FlowDiagramProps) => {
 
         nodes.push({
           id: `${j}-${i + 1}`,
-          type: "custom",
+          type: "email",
           position: { x: x, y: y },
           data: { email, onClick: () => updateSharedPopupState(email, true) }
         });
@@ -184,8 +184,8 @@ const FlowDiagram = ({ groups }: FlowDiagramProps) => {
 
     return { nodes, edges };
   };
-  console.log(groups);
-  const { nodes: initialNodes, edges: initialEdges } = createGraph(groups);
+  // console.log(groups);
+  const { nodes: initialNodes, edges: initialEdges } = createGraph(emailData);
   const [nodes, setNodes] = useState<Node[]>(initialNodes);
   const [edges, setEdges] = useState<Edge[]>(initialEdges);
 

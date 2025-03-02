@@ -1,6 +1,9 @@
 .flowCanvas {
   width: 100vw;
   height: 100vh;
+  background-image: url('public/background-stars.jpg');
+  background-size: cover;
+  transition: background-position 0.1s ease-out;
 }
 
 .reactFlow {

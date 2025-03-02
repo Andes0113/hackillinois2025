@@ -3,6 +3,7 @@
 import React from "react";
 import { Handle, Position, NodeProps } from "reactflow";
 import { EmailType } from "types";
+import styles from "./EmailNode.module.css";
 
 interface EmailNodeProps {
   email: EmailType;
@@ -19,20 +20,14 @@ const EmailNode: React.FC<Props> = ({ data }) => {
 
   return (
     <div
-      className="max-w-xs"
+      className={styles.emailNode}
       onClick={handleClick}
-      style={{
-        padding: 10,
-        border: "1px solid black",
-        borderRadius: 5,
-        background: "#f9f9f9",
-        cursor: "pointer",
-      }}
-
     >
-      <p>To: {data.email && data.email.to}</p>
-      <p>From: {data.email && data.email.from}</p>
-      <p>Subject: {data.email && data.email.subject}</p>
+      <p className={styles.emailText}>
+        To: {data.email?.to} <br />
+        From: {data.email?.from} <br />
+        Subject: {data.email?.subject}
+      </p>
 
       {/* Top Handles */}
       <Handle type="target" position={Position.Top} id="top-target" style={{ visibility: 'hidden' }} />

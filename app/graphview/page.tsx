@@ -31,7 +31,8 @@ export default function graphview() {
       </select>
       <div className="flex">
         <EmailSidebar />
-        {!groupsLoading && <FlowCanvas groups={groups} />}
+        {/* {!groupsLoading && <FlowCanvas groups={groups} />} */}
+        <FlowCanvas groups={groups} />
       </div>
     </>
   );
