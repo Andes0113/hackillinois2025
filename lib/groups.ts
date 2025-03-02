@@ -37,12 +37,12 @@ export async function getUserGroups(userEmail: string, accessToken: string) {
       );
 
       if (existingGroup) {
-        existingGroup.emails.push(curr);
+        existingGroup.emails.push(emailMap[curr.email_id]);
       } else {
         acc.push({
           group_id: curr.group_id,
           name: curr.name,
-          emails: [curr]
+          emails: [emailMap[curr.email_id]]
         });
       }
 
