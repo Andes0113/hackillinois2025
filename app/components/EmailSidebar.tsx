@@ -1,5 +1,5 @@
-import { auth } from '@/lib/auth';
-import fetchEmails from '@/lib/gmail';
+'use client';
+import { useEmailContext } from 'app/contexts/EmailContext';
 
 type EmailType = {
   subject: string;
@@ -19,17 +19,16 @@ const EmailBlock = ({ email }: { email: EmailType }) => {
   );
 };
 
-export default async function EmailSidebar() {
-  const session = await auth();
+export default function EmailSidebar() {
+  const { emails, emailsLoading } = useEmailContext();
 
-  const emails: EmailType[] = (
-    await fetchEmails(session!.accessToken!, 30)
-  ).filter((email) => email.to !== undefined);
-
+  if (emailsLoading) {
+    return <div></div>;
+  }
   console.log(emails);
 
   return (
-    <div className="border-r border-gray-400 max-w-96 max-h-full overflow-auto">
+    <div className="border-r border-gray-400 max-w-96 max-h-screen overflow-auto">
       {emails.map((email) => (
         <EmailBlock email={email} key={email.message_id} />
       ))}

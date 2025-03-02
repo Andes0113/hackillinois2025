@@ -1,5 +1,6 @@
-"use client";
+'use client';
 
+import EmailSidebar from 'app/components/EmailSidebar';
 import FlowCanvas from '../components/FlowCanvas';
 import { useState } from 'react';
 

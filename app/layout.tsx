@@ -3,7 +3,7 @@ import Header from './components/Header';
 import { Analytics } from '@vercel/analytics/react';
 import { SessionProvider } from 'next-auth/react';
 import { Session } from 'inspector/promises';
-
+import EmailContextProvider from './contexts/EmailContext';
 
 export const metadata = {
   title: 'Next.js App Router + NextAuth + Tailwind CSS',
@@ -18,10 +18,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="flex min-h-screen w-full flex-col">
+      <body className="flex min-h-screen w-full flex-col max-h-screen">
         <SessionProvider>
-          <Header />
-          {children}
+          <EmailContextProvider>
+            <Header />
+            {children}
+          </EmailContextProvider>
         </SessionProvider>
       </body>
       <Analytics />

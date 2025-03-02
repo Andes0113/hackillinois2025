@@ -103,6 +103,7 @@ export default async function fetchEmails(
   accessToken: string,
   daysAgo: number
 ) {
+  console.log('fetching emails...');
   try {
     const auth = new google.auth.OAuth2();
     auth.setCredentials({ access_token: accessToken });

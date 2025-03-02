@@ -3,7 +3,11 @@ import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { sendEmail } from '@/lib/gmail';
 
-export default function MailForm() {
+interface MailFormPromps {
+  onMessageSent: () => void;
+}
+
+export default function MailForm({ onMessageSent }: MailFormPromps) {
   const { data: session, status } = useSession();
   const [subject, setSubject] = useState('');
   const [recipient, setRecipient] = useState('');
@@ -26,6 +30,7 @@ export default function MailForm() {
       );
 
       setMessage('Email sent successfully!');
+      onMessageSent();
     } catch (error: any) {
       setMessage(`Error: ${error.message}`);
     } finally {
