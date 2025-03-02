@@ -27,7 +27,10 @@ export default function graphview() {
         <option value={1825}>5 years</option>
         <option value={9999}>All time</option>
       </select>
-      <FlowCanvas />
+      <div className="flex">
+        <EmailSidebar />
+        <FlowCanvas />
+      </div>
     </>
   );
 }
