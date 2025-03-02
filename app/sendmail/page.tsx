@@ -5,5 +5,5 @@ import { sendEmail } from '@/lib/gmail';
 import MailForm from 'app/components/MailForm';
 
 export default function SendEmailPage() {
-  return <MailForm />;
+  return <MailForm onMessageSent={() => {}} />;
 }
