@@ -1,3 +1,4 @@
+'use server';
 // gmail.ts
 import { gmail_v1, google } from 'googleapis';
 import { client } from './db';
@@ -170,36 +171,33 @@ export async function sendEmail(
   recipient: string,
   body: string
 ) {
-  try {
-    const auth = new google.auth.OAuth2();
-    auth.setCredentials({ access_token: accessToken });
-    const tokenInfo = await auth.getTokenInfo(accessToken);
+  console.log('access: ', accessToken);
+  const auth = new google.auth.OAuth2();
+  auth.setCredentials({ access_token: accessToken });
+  const tokenInfo = await auth.getTokenInfo(accessToken);
 
-    const message = [
-      `From: ${userEmail}`,
-      `To: ${recipient}`,
-      `Subject: ${subject}`,
-      'Content-Type: text/plain; charset=utf-8',
-      'MIME-Version: 1.0',
-      '',
-      body
-    ].join('\r\n');
+  const message = [
+    `From: ${userEmail}`,
+    `To: ${recipient}`,
+    `Subject: ${subject}`,
+    'Content-Type: text/plain; charset=utf-8',
+    'MIME-Version: 1.0',
+    '',
+    body
+  ].join('\r\n');
 
-    const encodedMessage = Buffer.from(message)
-      .toString('base64')
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/, '');
+  const encodedMessage = Buffer.from(message)
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
 
-    const gmail = google.gmail({ version: 'v1', auth });
+  const gmail = google.gmail({ version: 'v1', auth });
 
-    await gmail.users.messages.send({
-      userId: 'me',
-      requestBody: {
-        raw: encodedMessage
-      }
-    });
-  } catch (err) {
-    console.error(err);
-  }
+  await gmail.users.messages.send({
+    userId: 'me',
+    requestBody: {
+      raw: encodedMessage
+    }
+  });
 }
